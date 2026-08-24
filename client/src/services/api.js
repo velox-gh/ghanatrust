@@ -40,12 +40,20 @@ export const serviceAPI = {
 export const providerAPI = {
   getProviders: (params) => api.get('/providers', { params }),
   getProviderById: (id) => api.get(`/providers/${id}`),
+  submitVerification: (data) => api.post('/providers/verifications', data),
+  getMyVerifications: () => api.get('/providers/verifications/me'),
 };
 
 // Booking endpoints
 export const bookingAPI = {
   createBooking: (data) => api.post('/bookings', data),
   getMyBookings: () => api.get('/bookings'),
+};
+
+// Admin endpoints
+export const adminAPI = {
+  getVerifications: () => api.get('/admin/verifications'),
+  updateVerificationStatus: (id, data) => api.put(`/admin/verifications/${id}/status`, data),
 };
 
 export default api;

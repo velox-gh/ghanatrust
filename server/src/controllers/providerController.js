@@ -109,3 +109,58 @@ export const getProviderById = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// @desc    Submit verification request
+// @route   POST /api/providers/verifications
+// @access  Private/Provider
+export const submitVerification = async (req, res) => {
+  try {
+    const { type, documentUrl, notes } = req.body;
+
+    if (!['IDENTITY', 'SKILLS', 'LOCATION'].includes(type)) {
+      return res.status(400).json({ success: false, message: 'Invalid verification type' });
+    }
+
+    const providerId = req.user.provider.id;
+
+    const request = await prisma.verificationRequest.create({
+      data: {
+        providerId,
+        userId: req.user.id,
+        type,
+        documentUrl,
+        notes
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      verification: request
+    });
+  } catch (error) {
+    console.error('Error submitting verification:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Get provider's own verification requests
+// @route   GET /api/providers/verifications
+// @access  Private/Provider
+export const getMyVerifications = async (req, res) => {
+  try {
+    const providerId = req.user.provider.id;
+
+    const verifications = await prisma.verificationRequest.findMany({
+      where: { providerId },
+      orderBy: { submittedAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      verifications
+    });
+  } catch (error) {
+    console.error('Error fetching verifications:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
