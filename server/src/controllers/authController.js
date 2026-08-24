@@ -15,18 +15,16 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, phoneNumber, role } = req.body;
+    const {
+      email, password, firstName, lastName, phoneNumber, role,
+      // Provider-specific fields
+      businessName, description, experienceYears, categoryId, serviceId
+    } = req.body;
 
     // Check if user exists
-    const userExists = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    const userExists = await prisma.user.findUnique({ where: { email } });
     if (userExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists',
-      });
+      return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
     // Hash password
@@ -45,13 +43,26 @@ export const register = async (req, res) => {
       },
     });
 
-    // If provider, create provider profile
+    // If provider, create provider profile and link service
     if (role === 'PROVIDER') {
-      await prisma.provider.create({
+      const provider = await prisma.provider.create({
         data: {
           userId: user.id,
+          businessName: businessName || null,
+          description: description || null,
+          experienceYears: experienceYears ? parseInt(experienceYears) : null,
         },
       });
+
+      // Link the selected service to this provider
+      if (serviceId) {
+        await prisma.providerService.create({
+          data: {
+            providerId: provider.id,
+            serviceId: parseInt(serviceId),
+          },
+        });
+      }
     }
 
     const token = generateToken(user.id);
@@ -69,10 +80,7 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
