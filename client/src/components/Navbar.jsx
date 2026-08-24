@@ -27,7 +27,7 @@ const Navbar = () => {
                   Ghana<span className="text-emerald-600">Trust</span>
                 </span>
                 <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300/50">
-                  🇬🇭 GHANA
+                  TechForge 🇬🇭
                 </span>
               </div>
               <p className="text-[11px] font-medium text-slate-500 tracking-wide uppercase">
