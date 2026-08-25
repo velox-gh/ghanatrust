@@ -42,6 +42,8 @@ export const providerAPI = {
   getProviderById: (id) => api.get(`/providers/${id}`),
   submitVerification: (data) => api.post('/providers/verifications', data),
   getMyVerifications: () => api.get('/providers/verifications/me'),
+  addService: (data) => api.post('/providers/services', data),
+  removeService: (id) => api.delete(`/providers/services/${id}`),
 };
 
 // Booking endpoints

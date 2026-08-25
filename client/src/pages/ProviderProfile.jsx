@@ -24,10 +24,15 @@ const ProviderProfile = () => {
   const fetchProviderProfile = async () => {
     try {
       const res = await providerAPI.getProviderById(id);
-      setProvider(res.data.provider);
-      if (res.data.provider?.services?.[0]) {
-        setSelectedServiceId(res.data.provider.services[0].service.id);
+      const providerData = res.data.provider;
+      setProvider(providerData);
+
+      // Auto-select first service only when there is exactly one option
+      const services = providerData?.services || [];
+      if (services.length === 1) {
+        setSelectedServiceId(String(services[0].service.id));
       }
+      // Multiple services → leave blank so user must actively choose
     } catch (err) {
       console.error('Failed to load provider:', err);
     } finally {
@@ -35,10 +40,21 @@ const ProviderProfile = () => {
     }
   };
 
+  // Derive the currently selected ProviderService record (carries price info)
+  const selectedProviderService = provider?.services?.find(
+    (ps) => String(ps.service.id) === String(selectedServiceId)
+  );
+
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
+
     if (!isAuthenticated) {
       navigate('/login');
+      return;
+    }
+
+    if (!selectedServiceId) {
+      setBookingMessage({ type: 'error', text: '⚠️ Please select a service before booking.' });
       return;
     }
 
@@ -48,16 +64,17 @@ const ProviderProfile = () => {
     try {
       await bookingAPI.createBooking({
         providerId: provider.id,
-        serviceId: selectedServiceId,
+        serviceId: parseInt(selectedServiceId),
         scheduledDate,
         description,
-        price: 80.0
+        price: selectedProviderService?.price || null,
       });
-      setBookingMessage({ type: 'success', text: '✅ Booking request submitted successfully! The provider will be notified.' });
+      setBookingMessage({ type: 'success', text: '✅ Booking request submitted! The provider will be notified.' });
       setDescription('');
       setScheduledDate('');
+      setSelectedServiceId('');
     } catch (err) {
-      setBookingMessage({ type: 'error', text: '❌ Failed to submit booking. Please try again.' });
+      setBookingMessage({ type: 'error', text: err.response?.data?.message || '❌ Failed to submit booking. Please try again.' });
     } finally {
       setBookingLoading(false);
     }
@@ -211,15 +228,25 @@ const ProviderProfile = () => {
                 </label>
                 <select
                   value={selectedServiceId}
+                  required
                   onChange={(e) => setSelectedServiceId(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
+                  <option value="">-- Select a service --</option>
                   {provider.services?.map((ps) => (
-                    <option key={ps.service.id} value={ps.service.id}>
-                      {ps.service.name} (GH₵ {ps.price || 80})
+                    <option key={ps.service.id} value={String(ps.service.id)}>
+                      {ps.service.name}{ps.price ? ` — GH₵ ${ps.price} ${ps.priceUnit || 'per job'}` : ''}
                     </option>
                   ))}
                 </select>
+                {selectedProviderService && (
+                  <p className="text-xs text-emerald-700 font-semibold mt-1.5">
+                    💰 Rate: GH₵ {selectedProviderService.price || '—'} {selectedProviderService.priceUnit || 'per job'}
+                  </p>
+                )}
+                {provider.services?.length === 0 && (
+                  <p className="text-xs text-rose-600 mt-1.5">⚠️ This provider has no services listed yet.</p>
+                )}
               </div>
 
               <div>

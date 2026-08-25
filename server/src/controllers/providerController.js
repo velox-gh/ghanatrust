@@ -164,3 +164,108 @@ export const getMyVerifications = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// @desc    Add a service to a provider's profile
+// @route   POST /api/providers/services
+// @access  Private/Provider
+export const addProviderService = async (req, res) => {
+  try {
+    const providerId = req.user.provider.id;
+    const { serviceId, serviceName, price, priceUnit } = req.body;
+
+    let targetServiceId = serviceId ? parseInt(serviceId) : null;
+
+    if (!targetServiceId && serviceName) {
+      // Find an existing service by name (case insensitive)
+      let service = await prisma.service.findFirst({
+        where: { name: { equals: serviceName } }
+      });
+
+      if (!service) {
+        // Find a default category, or the first one
+        let defaultCategory = await prisma.category.findFirst();
+        if (!defaultCategory) {
+          defaultCategory = await prisma.category.create({
+            data: { name: 'General Services', description: 'Uncategorized services' }
+          });
+        }
+        
+        service = await prisma.service.create({
+          data: {
+            name: serviceName,
+            categoryId: defaultCategory.id
+          }
+        });
+      }
+      targetServiceId = service.id;
+    }
+
+    if (!targetServiceId) {
+      return res.status(400).json({ success: false, message: 'Service ID or Name is required' });
+    }
+
+    // Check if it already exists
+    const existing = await prisma.providerService.findFirst({
+      where: { providerId, serviceId: targetServiceId }
+    });
+
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'You already offer this service' });
+    }
+
+    const providerService = await prisma.providerService.create({
+      data: {
+        providerId,
+        serviceId: targetServiceId,
+        price: price ? parseFloat(price) : null,
+        priceUnit: priceUnit || null
+      },
+      include: {
+        service: true
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      providerService
+    });
+  } catch (error) {
+    console.error('Error adding provider service:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Remove a service from a provider's profile
+// @route   DELETE /api/providers/services/:id
+// @access  Private/Provider
+export const removeProviderService = async (req, res) => {
+  try {
+    const providerId = req.user.provider.id;
+    const providerServiceId = parseInt(req.params.id);
+
+    // Verify ownership
+    const existing = await prisma.providerService.findUnique({
+      where: { id: providerServiceId }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Service not found' });
+    }
+
+    if (existing.providerId !== providerId) {
+      return res.status(403).json({ success: false, message: 'Not authorized to remove this service' });
+    }
+
+    await prisma.providerService.delete({
+      where: { id: providerServiceId }
+    });
+
+    res.json({
+      success: true,
+      message: 'Service removed successfully'
+    });
+  } catch (error) {
+    console.error('Error removing provider service:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
