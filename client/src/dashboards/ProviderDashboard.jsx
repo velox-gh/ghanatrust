@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { providerAPI } from '../services/api';
+import { providerAPI, bookingAPI } from '../services/api';
 
+// ─── Sub-components (Verification) ────────────────────────────────────────────
 const VerificationBadge = ({ label, verified, pendingStatus }) => {
   const isPending = pendingStatus === 'PENDING';
   if (verified) {
@@ -28,14 +30,113 @@ const VerificationBadge = ({ label, verified, pendingStatus }) => {
   );
 };
 
+// ─── Booking Status Badge ──────────────────────────────────────────────────────
+const StatusBadge = ({ status }) => {
+  const cfg = {
+    REQUESTED:   { label: 'Requested',   cls: 'bg-amber-100 text-amber-800 border-amber-300',   icon: '🟡' },
+    ACCEPTED:    { label: 'Accepted',    cls: 'bg-blue-100 text-blue-800 border-blue-300',       icon: '🔵' },
+    IN_PROGRESS: { label: 'In Progress', cls: 'bg-orange-100 text-orange-800 border-orange-300', icon: '🔧' },
+    COMPLETED:   { label: 'Completed',   cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: '✅' },
+    CANCELLED:   { label: 'Cancelled',   cls: 'bg-red-100 text-red-800 border-red-300',          icon: '❌' },
+    SCHEDULED:   { label: 'Scheduled',   cls: 'bg-indigo-100 text-indigo-800 border-indigo-300', icon: '📅' },
+  }[status] || { label: status, cls: 'bg-slate-100 text-slate-700 border-slate-200', icon: '●' };
+
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full border ${cfg.cls}`}>
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+};
+
+// ─── Incoming Job Request Card ─────────────────────────────────────────────────
+const JobCard = ({ booking, onAction, loadingId }) => {
+  const isLoading = loadingId === booking.id;
+  const s = booking.status;
+
+  return (
+    <div className={`p-5 rounded-xl border bg-white shadow-sm transition ${
+      s === 'REQUESTED' ? 'border-amber-300 ring-1 ring-amber-100' : 'border-gray-100'
+    }`}>
+      <div className="flex justify-between items-start gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h4 className="font-bold text-slate-900 truncate">{booking.service?.name}</h4>
+            <StatusBadge status={s} />
+          </div>
+          <p className="text-xs text-slate-500 mb-2 line-clamp-1">
+            {booking.description || 'No description provided.'}
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span>
+              👤 <strong className="text-slate-700">
+                {booking.customer?.firstName} {booking.customer?.lastName}
+              </strong>
+            </span>
+            <span>
+              🗓️{' '}
+              <strong className="text-slate-700">
+                {booking.scheduledDate
+                  ? new Date(booking.scheduledDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })
+                  : 'TBD'}
+              </strong>
+            </span>
+            {booking.price && (
+              <span className="text-emerald-700 font-bold">GH₵ {booking.price.toFixed(2)}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-2 items-end shrink-0">
+          <Link
+            to={`/my-bookings/${booking.id}`}
+            className="text-xs text-blue-600 hover:underline font-semibold whitespace-nowrap"
+          >
+            View Details →
+          </Link>
+          <div className="flex gap-2 flex-wrap justify-end">
+            {s === 'REQUESTED' && (
+              <button
+                onClick={() => onAction(booking.id, 'accept')}
+                disabled={isLoading}
+                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
+              >
+                {isLoading ? '...' : '✅ Accept'}
+              </button>
+            )}
+            {s === 'ACCEPTED' && (
+              <button
+                onClick={() => onAction(booking.id, 'start')}
+                disabled={isLoading}
+                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {isLoading ? '...' : '🔧 Start Job'}
+              </button>
+            )}
+            {s === 'IN_PROGRESS' && (
+              <button
+                onClick={() => onAction(booking.id, 'complete')}
+                disabled={isLoading}
+                className="px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+              >
+                {isLoading ? '...' : '🏁 Complete'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main ProviderDashboard ────────────────────────────────────────────────────
 const ProviderDashboard = () => {
   const { user } = useAuth();
   const provider = user?.provider;
 
+  // Verification state
   const [verifications, setVerifications] = useState([]);
   const [loadingVerifications, setLoadingVerifications] = useState(true);
-
-  // Form state
   const [identityDoc, setIdentityDoc] = useState('');
   const [identityNote, setIdentityNote] = useState('');
   const [skillsDoc, setSkillsDoc] = useState('');
@@ -43,8 +144,15 @@ const ProviderDashboard = () => {
   const [submitLoading, setSubmitLoading] = useState('');
   const [submitMessage, setSubmitMessage] = useState(null);
 
+  // Booking state
+  const [bookings, setBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+  const [loadingId, setLoadingId] = useState(null);
+  const [activeTab, setActiveTab] = useState('incoming');
+
   useEffect(() => {
     fetchMyVerifications();
+    fetchBookings();
   }, []);
 
   async function fetchMyVerifications() {
@@ -58,12 +166,37 @@ const ProviderDashboard = () => {
     }
   }
 
+  async function fetchBookings() {
+    try {
+      const res = await bookingAPI.getMyBookings();
+      setBookings(res.data.bookings || []);
+    } catch (err) {
+      console.error('Failed to load bookings:', err);
+    } finally {
+      setLoadingBookings(false);
+    }
+  }
+
+  const handleBookingAction = async (bookingId, action) => {
+    setLoadingId(bookingId);
+    try {
+      if (action === 'accept')   await bookingAPI.updateStatus(bookingId, 'ACCEPTED');
+      if (action === 'start')    await bookingAPI.updateStatus(bookingId, 'IN_PROGRESS');
+      if (action === 'complete') await bookingAPI.completeBooking(bookingId);
+      await fetchBookings();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Action failed. Please try again.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
   const getStatusForType = (type) => {
     const req = verifications.find(v => v.type === type);
     return req?.status || null;
   };
 
-  const handleSubmit = async (type, documentUrl, notes) => {
+  const handleVerificationSubmit = async (type, documentUrl, notes) => {
     setSubmitLoading(type);
     setSubmitMessage(null);
     try {
@@ -71,7 +204,7 @@ const ProviderDashboard = () => {
       setSubmitMessage({ type: 'success', text: `✅ ${type === 'IDENTITY' ? 'Identity' : 'Skills'} verification submitted! Our team will review it shortly.` });
       fetchMyVerifications();
       if (type === 'IDENTITY') { setIdentityDoc(''); setIdentityNote(''); }
-      if (type === 'SKILLS') { setSkillsDoc(''); setSkillsNote(''); }
+      if (type === 'SKILLS')   { setSkillsDoc('');   setSkillsNote(''); }
     } catch (err) {
       setSubmitMessage({ type: 'error', text: `❌ Failed to submit. ${err.response?.data?.message || 'Try again.'}` });
     } finally {
@@ -80,11 +213,19 @@ const ProviderDashboard = () => {
   };
 
   const identityStatus = getStatusForType('IDENTITY');
-  const skillsStatus = getStatusForType('SKILLS');
+  const skillsStatus   = getStatusForType('SKILLS');
+
+  // Booking segments
+  const incoming  = bookings.filter(b => b.status === 'REQUESTED');
+  const active    = bookings.filter(b => ['ACCEPTED', 'SCHEDULED', 'IN_PROGRESS'].includes(b.status));
+  const completed = bookings.filter(b => b.status === 'COMPLETED');
+
+  const tabBookings = activeTab === 'incoming' ? incoming : activeTab === 'active' ? active : completed;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Provider Hero Banner */}
+
+      {/* ── Provider Hero Banner ─────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-800 rounded-2xl p-8 text-white shadow-xl mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -105,7 +246,100 @@ const ProviderDashboard = () => {
         </div>
       </div>
 
-      {/* Trust Badges & Verification Status */}
+      {/* ── Stats Row ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <p className="text-2xl font-black text-amber-600">{incoming.length}</p>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Pending Requests</p>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <p className="text-2xl font-black text-blue-600">{active.length}</p>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Active Jobs</p>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <p className="text-2xl font-black text-emerald-600">{provider?.jobsCompleted || 0}</p>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Jobs Completed</p>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
+          <p className="text-2xl font-black text-purple-600">{provider?.completionRate || 0}%</p>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Completion Rate</p>
+        </div>
+      </div>
+
+      {/* ── Job Requests & Bookings Panel ────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            📋 Job Requests & Bookings
+          </h2>
+          <Link to="/my-bookings" className="text-xs text-blue-600 hover:underline font-semibold">
+            View All →
+          </Link>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100">
+          {[
+            { key: 'incoming', label: 'Incoming', count: incoming.length, color: 'amber' },
+            { key: 'active',   label: 'Active',   count: active.length,   color: 'blue' },
+            { key: 'done',     label: 'Completed', count: completed.length, color: 'emerald' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition ${
+                activeTab === tab.key
+                  ? 'border-emerald-600 text-emerald-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`text-xs font-black px-1.5 py-0.5 rounded-full ${
+                  tab.color === 'amber' ? 'bg-amber-100 text-amber-700' :
+                  tab.color === 'blue'  ? 'bg-blue-100 text-blue-700' :
+                                          'bg-emerald-100 text-emerald-700'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6">
+          {loadingBookings ? (
+            <div className="space-y-3">
+              {[1, 2].map(i => <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />)}
+            </div>
+          ) : tabBookings.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <span className="text-3xl block mb-2">
+                {activeTab === 'incoming' ? '📭' : activeTab === 'active' ? '⚙️' : '🏆'}
+              </span>
+              <p className="text-sm font-semibold">
+                {activeTab === 'incoming' ? 'No pending job requests' :
+                 activeTab === 'active'   ? 'No active jobs right now' :
+                                            'No completed jobs yet'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tabBookings.map(booking => (
+                <JobCard
+                  key={booking.id}
+                  booking={booking}
+                  onAction={handleBookingAction}
+                  loadingId={loadingId}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Trust Badges ─────────────────────────────────────────────────── */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
           <span>🛡️</span> Trust & Verification Badges
@@ -136,7 +370,7 @@ const ProviderDashboard = () => {
         </div>
       </div>
 
-      {/* Verification Submission Forms */}
+      {/* ── Verification Submission Forms ─────────────────────────────────── */}
       {submitMessage && (
         <div className={`p-4 rounded-xl text-sm font-semibold mb-6 ${submitMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
           {submitMessage.text}
@@ -149,9 +383,7 @@ const ProviderDashboard = () => {
           <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
             🪪 Identity Verification
           </h3>
-          <p className="text-xs text-gray-500 mb-4">
-            Submit your Ghana Card details to get identity-verified.
-          </p>
+          <p className="text-xs text-gray-500 mb-4">Submit your Ghana Card details to get identity-verified.</p>
           {provider?.identityVerified ? (
             <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-xl text-sm font-semibold">
               ✅ Your identity is already verified!
@@ -169,7 +401,7 @@ const ProviderDashboard = () => {
                 doc={identityDoc} setDoc={setIdentityDoc}
                 note={identityNote} setNote={setIdentityNote}
                 loading={submitLoading === 'IDENTITY'}
-                onSubmit={() => handleSubmit('IDENTITY', identityDoc, identityNote)}
+                onSubmit={() => handleVerificationSubmit('IDENTITY', identityDoc, identityNote)}
               />
             </div>
           ) : (
@@ -177,7 +409,7 @@ const ProviderDashboard = () => {
               doc={identityDoc} setDoc={setIdentityDoc}
               note={identityNote} setNote={setIdentityNote}
               loading={submitLoading === 'IDENTITY'}
-              onSubmit={() => handleSubmit('IDENTITY', identityDoc, identityNote)}
+              onSubmit={() => handleVerificationSubmit('IDENTITY', identityDoc, identityNote)}
             />
           )}
         </div>
@@ -187,9 +419,7 @@ const ProviderDashboard = () => {
           <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
             📜 Skills / Trade Certificate
           </h3>
-          <p className="text-xs text-gray-500 mb-4">
-            Upload your NVTI certificate or relevant trade qualification.
-          </p>
+          <p className="text-xs text-gray-500 mb-4">Upload your NVTI certificate or relevant trade qualification.</p>
           {provider?.skillsVerified ? (
             <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-xl text-sm font-semibold">
               ✅ Your skills are already verified!
@@ -207,7 +437,7 @@ const ProviderDashboard = () => {
                 doc={skillsDoc} setDoc={setSkillsDoc}
                 note={skillsNote} setNote={setSkillsNote}
                 loading={submitLoading === 'SKILLS'}
-                onSubmit={() => handleSubmit('SKILLS', skillsDoc, skillsNote)}
+                onSubmit={() => handleVerificationSubmit('SKILLS', skillsDoc, skillsNote)}
               />
             </div>
           ) : (
@@ -215,14 +445,14 @@ const ProviderDashboard = () => {
               doc={skillsDoc} setDoc={setSkillsDoc}
               note={skillsNote} setNote={setSkillsNote}
               loading={submitLoading === 'SKILLS'}
-              onSubmit={() => handleSubmit('SKILLS', skillsDoc, skillsNote)}
+              onSubmit={() => handleVerificationSubmit('SKILLS', skillsDoc, skillsNote)}
             />
           )}
         </div>
       </div>
 
-      {/* Verification History */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+      {/* ── Verification History ──────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
           <h2 className="text-base font-bold text-gray-900">Verification Request History</h2>
         </div>
@@ -241,7 +471,7 @@ const ProviderDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {verifications.map((req) => (
+              {verifications.map(req => (
                 <tr key={req.id} className="border-b border-gray-50 hover:bg-slate-50">
                   <td className="px-6 py-3">
                     <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-bold border border-indigo-100">
@@ -249,46 +479,25 @@ const ProviderDashboard = () => {
                     </span>
                   </td>
                   <td className="px-6 py-3">
-                    {req.status === 'PENDING' && <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-xs font-bold">Pending</span>}
+                    {req.status === 'PENDING'  && <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-xs font-bold">Pending</span>}
                     {req.status === 'VERIFIED' && <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full text-xs font-bold">Verified ✓</span>}
                     {req.status === 'REJECTED' && <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2 py-1 rounded-full text-xs font-bold">Rejected</span>}
                   </td>
                   <td className="px-6 py-3 text-gray-500 text-xs">
                     {new Date(req.submittedAt).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-3 text-gray-500 text-xs">
-                    {req.adminNotes || '—'}
-                  </td>
+                  <td className="px-6 py-3 text-gray-500 text-xs">{req.adminNotes || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
-
-      {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <span className="text-sm font-medium text-gray-500">Jobs Completed</span>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{provider?.jobsCompleted || 0}</p>
-          <span className="text-xs text-emerald-600 font-semibold mt-1 block">{provider?.completionRate || 0}% Completion Rate</span>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <span className="text-sm font-medium text-gray-500">Trust Score</span>
-          <p className="text-3xl font-bold text-gray-900 mt-1">⭐ {provider?.trustScore || 0}</p>
-          <span className="text-xs text-gray-500 mt-1 block">Based on reviews & jobs</span>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <span className="text-sm font-medium text-gray-500">Years Experience</span>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{provider?.experienceYears || 0} Yrs</p>
-          <span className="text-xs text-gray-500 mt-1 block">Ghana Registered Pro</span>
-        </div>
-      </div>
     </div>
   );
 };
 
-// Sub-component: Identity form
+// ─── Verification Sub-forms ────────────────────────────────────────────────────
 function IdentityForm({ doc, setDoc, note, setNote, loading, onSubmit }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-3">
@@ -324,7 +533,6 @@ function IdentityForm({ doc, setDoc, note, setNote, loading, onSubmit }) {
   );
 }
 
-// Sub-component: Skills form
 function SkillsForm({ doc, setDoc, note, setNote, loading, onSubmit }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-3">

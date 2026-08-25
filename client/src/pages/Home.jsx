@@ -48,7 +48,7 @@ const Home = () => {
           <div className="max-w-3xl mx-auto text-center">
             {/* Trust Pill */}
             <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-4 py-1.5 rounded-full text-xs font-semibold text-emerald-400 mb-6 shadow-inner">
-              <span>🇬🇭</span> Ghana's Trust-First Service Marketplace
+              <span></span> Ghana's Trust-First Service Marketplace
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6">
