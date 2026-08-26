@@ -38,6 +38,12 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
+            <a
+              href="/"
+              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5"
+            >
+              <span>🛡️</span> Home
+            </a>
             <Link
               to="/services"
               className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5"
@@ -48,7 +54,7 @@ const Navbar = () => {
               href="#how-it-works"
               className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5"
             >
-              <span>🛡️</span> How Trust Works
+              <span></span> How Trust Works
             </a>
           </nav>
 

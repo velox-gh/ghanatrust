@@ -204,6 +204,51 @@ const ProviderProfile = () => {
                 ))}
               </div>
             </div>
+
+            {/* Reviews Section */}
+            <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-sm">
+              <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Reviews & Ratings
+                </h2>
+                <span className="text-sm font-bold text-amber-500 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200">
+                  ⭐ {provider.trustScore || '0.0'} Average
+                </span>
+              </div>
+              <div className="space-y-4">
+                {provider.reviews?.length > 0 ? (
+                  provider.reviews.map((review) => (
+                    <div key={review.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-slate-300 flex items-center justify-center font-bold text-slate-700">
+                            {review.customer?.firstName?.[0] || 'C'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900">
+                              {review.customer?.firstName} {review.customer?.lastName}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {new Date(review.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex text-amber-400 text-sm">
+                          {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        {review.comment || 'No comment provided.'}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500 italic text-center py-6">
+                    No reviews yet. Be the first to review after a booking!
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Booking Sidebar Form */}

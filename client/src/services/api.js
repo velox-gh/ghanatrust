@@ -54,6 +54,7 @@ export const bookingAPI = {
   updateStatus: (id, status) => api.patch(`/bookings/${id}/status`, { status }),
   completeBooking: (id) => api.patch(`/bookings/${id}/complete`),
   cancelBooking: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
+  createReview: (data) => api.post('/reviews', data),
 };
 
 // Admin endpoints

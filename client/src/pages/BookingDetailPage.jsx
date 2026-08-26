@@ -85,6 +85,9 @@ const BookingDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
   const [error, setError] = useState('');
 
   const fetchBooking = useCallback(async () => {
@@ -115,6 +118,24 @@ const BookingDetailPage = () => {
       await fetchBooking();
     } catch (err) {
       alert(err.response?.data?.message || 'Action failed. Please try again.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setActionLoading('review');
+    try {
+      await bookingAPI.createReview({
+        bookingId: id,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      setShowReviewModal(false);
+      await fetchBooking(); // Reload booking to show review
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit review.');
     } finally {
       setActionLoading('');
     }
@@ -324,12 +345,12 @@ const BookingDetailPage = () => {
 
             {/* Customer actions */}
             {canReview && (
-              <Link
-                to={`/my-bookings/${booking.id}`}
+              <button
+                onClick={() => setShowReviewModal(true)}
                 className="px-6 py-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition"
               >
                 ⭐ Leave a Review
-              </Link>
+              </button>
             )}
             {canCancel && (
               <button
@@ -384,6 +405,62 @@ const BookingDetailPage = () => {
                 {actionLoading === 'cancel' ? 'Cancelling...' : 'Yes, Cancel'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Leave a Review</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              How was your experience with <strong>{booking.provider?.user?.firstName}</strong>?
+            </p>
+            <form onSubmit={handleReviewSubmit}>
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      type="button"
+                      key={star}
+                      onClick={() => setReviewRating(star)}
+                      className={`text-2xl ${reviewRating >= star ? 'text-amber-400' : 'text-slate-300'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Comment</label>
+                <textarea
+                  required
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  rows="4"
+                  placeholder="Tell others about the service you received..."
+                ></textarea>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReviewModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'review'}
+                  className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition disabled:opacity-50"
+                >
+                  {actionLoading === 'review' ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
