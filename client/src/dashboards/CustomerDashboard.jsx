@@ -78,6 +78,42 @@ const CustomerDashboard = () => {
         </div>
       </div>
 
+      {/* ── Action Cards ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Link
+          to="/services"
+          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 hover:shadow-md transition group"
+        >
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+            🔍
+          </div>
+          <h3 className="font-bold text-slate-800 mb-1">Find Service</h3>
+          <p className="text-sm text-slate-500">Browse verified professionals</p>
+        </Link>
+
+        <Link
+          to="/my-bookings"
+          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 hover:shadow-md transition group"
+        >
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+            📅
+          </div>
+          <h3 className="font-bold text-slate-800 mb-1">My Bookings</h3>
+          <p className="text-sm text-slate-500">View and manage appointments</p>
+        </Link>
+
+        <Link
+          to="/payments"
+          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 hover:shadow-md transition group"
+        >
+          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+            💳
+          </div>
+          <h3 className="font-bold text-slate-800 mb-1">Payments</h3>
+          <p className="text-sm text-slate-500">Transaction history</p>
+        </Link>
+      </div>
+
       {/* ── Live Stats Row ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">

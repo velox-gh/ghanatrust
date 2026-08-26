@@ -289,11 +289,55 @@ const ProviderDashboard = () => {
               {provider?.businessName || 'Build your trusted reputation and expand your client base across Ghana.'}
             </p>
           </div>
+          
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-5 py-3 text-center">
             <span className="text-xs text-emerald-200 block uppercase tracking-wider">Trust Score</span>
             <span className="text-2xl font-black text-amber-300">⭐ {provider?.trustScore || '0.0'} / 5.0</span>
+            <span className="text-[10px] text-emerald-100 block mt-1">{provider?.jobsCompleted || 0} Jobs Done</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Quick Links ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Link
+          to="/my-bookings"
+          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-blue-300 transition group"
+        >
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+            📋
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800">Job Requests</h3>
+            <p className="text-xs text-slate-500">Manage bookings</p>
+          </div>
+        </Link>
+
+        <button
+          onClick={() => document.getElementById('add-service-section').scrollIntoView({ behavior: 'smooth' })}
+          className="bg-white text-left p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-emerald-300 transition group w-full"
+        >
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+            ➕
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800">Add Service</h3>
+            <p className="text-xs text-slate-500">Expand offerings</p>
+          </div>
+        </button>
+
+        <Link
+          to="/payments"
+          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-purple-300 transition group"
+        >
+          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+            💳
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800">Earnings</h3>
+            <p className="text-xs text-slate-500">View transactions</p>
+          </div>
+        </Link>
       </div>
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}

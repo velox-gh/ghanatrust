@@ -57,6 +57,12 @@ export const bookingAPI = {
   createReview: (data) => api.post('/reviews', data),
 };
 
+// Payment endpoints
+export const paymentAPI = {
+  createPayment: (data) => api.post('/payments', data),
+  getTransactionHistory: () => api.get('/payments/history'),
+};
+
 // Admin endpoints
 export const adminAPI = {
   getVerifications: () => api.get('/admin/verifications'),

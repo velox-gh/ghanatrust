@@ -10,6 +10,7 @@ import providerRoutes from './routes/providerRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/providers', providerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -20,22 +20,6 @@ const Services = () => {
   const [selectedLocation, setSelectedLocation] = useState(currentLocation);
   const [verifiedOnly, setVerifiedOnly] = useState(currentVerified);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
-    fetchFilteredProviders();
-    
-    // Update URL params
-    const params = new URLSearchParams();
-    if (searchTerm) params.set('search', searchTerm);
-    if (selectedCategory) params.set('categoryId', selectedCategory);
-    if (selectedLocation) params.set('locationId', selectedLocation);
-    if (verifiedOnly) params.set('verifiedOnly', 'true');
-    setSearchParams(params);
-  }, [selectedCategory, searchTerm, selectedLocation, verifiedOnly]);
-
   async function fetchInitialData() {
     try {
       const [catRes, locRes] = await Promise.all([
@@ -65,6 +49,22 @@ const Services = () => {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    fetchFilteredProviders();
+    
+    // Update URL params
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (selectedCategory) params.set('categoryId', selectedCategory);
+    if (selectedLocation) params.set('locationId', selectedLocation);
+    if (verifiedOnly) params.set('verifiedOnly', 'true');
+    setSearchParams(params);
+  }, [selectedCategory, searchTerm, selectedLocation, verifiedOnly]);
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">

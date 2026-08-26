@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { bookingAPI } from '../services/api';
+import { bookingAPI, paymentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Status Step Timeline ─────────────────────────────────────────────────────
@@ -88,6 +88,10 @@ const BookingDetailPage = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [momoNumber, setMomoNumber] = useState('');
+  
   const [error, setError] = useState('');
 
   const fetchBooking = useCallback(async () => {
@@ -141,6 +145,37 @@ const BookingDetailPage = () => {
     }
   };
 
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    setActionLoading('payment');
+    try {
+      // Need to import paymentAPI at top of file, wait I didn't import it in this replace block!
+      // Wait, let me just add it. Wait, I can't import inside the function. I'll need to update imports.
+      // But let me use the fetch call directly or assume we import paymentAPI.
+      alert('Processing payment...');
+      const res = await paymentAPI.createPayment({
+        bookingId: id,
+        amount: booking.price,
+        mobileMoneyNumber: momoNumber
+      });
+      const data = res.data;
+      if (!data.success) throw new Error(data.message);
+      
+      alert(data.message);
+      setShowPaymentModal(false);
+      
+      // Since mock payment takes 3s to update DB, let's poll or just reload after 3.5s
+      setTimeout(() => {
+        fetchBooking();
+      }, 3500);
+
+    } catch (err) {
+      alert(err.message || 'Failed to initiate payment.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -168,6 +203,7 @@ const BookingDetailPage = () => {
   const canAccept = isProvider && s === 'REQUESTED';
   const canStart = isProvider && s === 'ACCEPTED';
   const canComplete = isProvider && s === 'IN_PROGRESS';
+  const canPay = isCustomer && s === 'COMPLETED';
   const canReview = isCustomer && (s === 'COMPLETED' || s === 'PAID') && !booking.review;
 
   return (
@@ -344,6 +380,14 @@ const BookingDetailPage = () => {
             )}
 
             {/* Customer actions */}
+            {canPay && (
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition"
+              >
+                💳 Pay Now via Mobile Money
+              </button>
+            )}
             {canReview && (
               <button
                 onClick={() => setShowReviewModal(true)}
@@ -458,6 +502,51 @@ const BookingDetailPage = () => {
                   className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition disabled:opacity-50"
                 >
                   {actionLoading === 'review' ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Secure Mobile Money Payment</h3>
+            <p className="text-sm text-slate-600 mb-6">
+              You are paying <strong>GH₵ {booking.price?.toFixed(2) || '0.00'}</strong> to <strong>{booking.provider?.user?.firstName}</strong> for the <strong>{booking.service?.name}</strong> service.
+            </p>
+            <form onSubmit={handlePaymentSubmit}>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Mobile Money Number</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="e.g. 024XXXXXXX or 055XXXXXXX"
+                  value={momoNumber}
+                  onChange={(e) => setMomoNumber(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-2">
+                  A payment prompt will be sent to this number. Please authorize the transaction on your phone.
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'payment'}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50"
+                >
+                  {actionLoading === 'payment' ? 'Processing...' : 'Pay GH₵ ' + (booking.price?.toFixed(2) || '0.00')}
                 </button>
               </div>
             </form>

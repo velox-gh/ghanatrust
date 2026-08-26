@@ -8,10 +8,6 @@ const ServiceDetails = () => {
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchService();
-  }, [id]);
-
   const fetchService = async () => {
     try {
       const res = await serviceAPI.getServiceById(id);
@@ -22,6 +18,10 @@ const ServiceDetails = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchService();
+  }, [id]);
 
   if (loading) {
     return (

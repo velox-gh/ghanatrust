@@ -15,6 +15,7 @@ import SearchResults from './pages/SearchResults';
 import Booking from './pages/Booking';
 import MyBookings from './pages/MyBookings';
 import BookingDetailPage from './pages/BookingDetailPage';
+import Payments from './pages/Payments';
 import NotFound from './pages/NotFound';
 
 // Dashboards
@@ -38,6 +39,7 @@ function App() {
               <Route path="/booking/:serviceId" element={<Booking />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/my-bookings/:id" element={<BookingDetailPage />} />
+              <Route path="/payments" element={<Payments />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
