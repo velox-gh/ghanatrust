@@ -175,7 +175,8 @@ export const updateBookingStatus = async (req, res) => {
     // Validate transitions
     const allowedTransitions = {
       REQUESTED: ['ACCEPTED'],
-      ACCEPTED: ['IN_PROGRESS', 'SCHEDULED'],
+      ACCEPTED: ['SCHEDULED'],
+      PRICE_AGREED: ['IN_PROGRESS', 'SCHEDULED'],
       SCHEDULED: ['IN_PROGRESS'],
       IN_PROGRESS: ['COMPLETED'],
     };
@@ -227,6 +228,37 @@ export const updateBookingStatus = async (req, res) => {
 };
 
 // @desc    Mark booking as complete (provider) — updates provider stats
+// @route   PATCH /api/bookings/:id/complete
+// @access  Private (Provider)
+export const agreePrice = async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const { price } = req.body;
+    const userId = req.user.id;
+
+    const provider = await prisma.provider.findUnique({ where: { userId } });
+    if (!provider) return res.status(403).json({ success: false, message: 'Only providers can set the price' });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, providerId: provider.id }
+    });
+
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (booking.status !== 'ACCEPTED') return res.status(400).json({ success: false, message: 'Booking must be ACCEPTED to set price' });
+    if (!price || isNaN(price)) return res.status(400).json({ success: false, message: 'A valid final price must be provided' });
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'PRICE_AGREED', price: parseFloat(price) }
+    });
+
+    res.json({ success: true, booking: updatedBooking });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Complete a booking
 // @route   PATCH /api/bookings/:id/complete
 // @access  Private (Provider)
 export const completeBooking = async (req, res) => {
@@ -381,6 +413,48 @@ export const cancelBooking = async (req, res) => {
     res.json({ success: true, booking: updated });
   } catch (error) {
     console.error('Error cancelling booking:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getMessages = async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const messages = await prisma.message.findMany({
+      where: { bookingId },
+      orderBy: { createdAt: 'asc' },
+      include: { sender: { select: { id: true, firstName: true } } }
+    });
+    res.json({ success: true, messages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const sendMessage = async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const { content } = req.body;
+    const senderId = req.user.id;
+
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { provider: true } });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    // Determine receiver
+    const receiverId = senderId === booking.customerId ? booking.provider.userId : booking.customerId;
+
+    const message = await prisma.message.create({
+      data: {
+        senderId,
+        receiverId,
+        bookingId,
+        content
+      },
+      include: { sender: { select: { id: true, firstName: true } } }
+    });
+
+    res.status(201).json({ success: true, message });
+  } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

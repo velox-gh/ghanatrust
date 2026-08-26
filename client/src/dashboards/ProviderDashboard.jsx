@@ -153,8 +153,6 @@ const ProviderDashboard = () => {
   // Services state
   const [allServices, setAllServices] = useState([]);
   const [newServiceName, setNewServiceName] = useState('');
-  const [newServicePrice, setNewServicePrice] = useState('');
-  const [newServiceUnit, setNewServiceUnit] = useState('per job');
   const [serviceActionLoading, setServiceActionLoading] = useState(false);
 
   useEffect(() => {
@@ -200,13 +198,10 @@ const ProviderDashboard = () => {
     setServiceActionLoading(true);
     try {
       await providerAPI.addService({
-        serviceName: newServiceName,
-        price: newServicePrice,
-        priceUnit: newServiceUnit
+        serviceName: newServiceName
       });
       await refreshUser();
       setNewServiceName('');
-      setNewServicePrice('');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add service');
     } finally {
@@ -375,10 +370,10 @@ const ProviderDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {provider.services.map((ps) => (
                 <div key={ps.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-emerald-200 transition">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">{ps.service?.name}</h4>
-                    <span className="text-xs font-bold text-emerald-700 mt-1 block">
-                      GH₵ {ps.price || '80'} {ps.priceUnit || 'per job'}
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-800">{ps.service?.name}</h3>
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                      {ps.service?.category?.name}
                     </span>
                   </div>
                   <button
@@ -418,28 +413,7 @@ const ProviderDashboard = () => {
                 ))}
               </datalist>
             </div>
-            <div className="w-full md:w-32">
-              <label className="block text-xs font-bold text-slate-700 mb-1">PRICE (GH₵)</label>
-              <input
-                type="number"
-                placeholder="e.g. 80"
-                value={newServicePrice}
-                onChange={(e) => setNewServicePrice(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-            <div className="w-full md:w-32">
-              <label className="block text-xs font-bold text-slate-700 mb-1">UNIT</label>
-              <select
-                value={newServiceUnit}
-                onChange={(e) => setNewServiceUnit(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="per job">per job</option>
-                <option value="per hour">per hour</option>
-                <option value="per day">per day</option>
-              </select>
-            </div>
+
             <button
               type="submit"
               disabled={serviceActionLoading || !newServiceName}

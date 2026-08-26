@@ -52,8 +52,11 @@ export const bookingAPI = {
   getMyBookings: (params) => api.get('/bookings', { params }),
   getBookingById: (id) => api.get(`/bookings/${id}`),
   updateStatus: (id, status) => api.patch(`/bookings/${id}/status`, { status }),
+  agreePrice: (id, price) => api.patch(`/bookings/${id}/agree-price`, { price }),
   completeBooking: (id) => api.patch(`/bookings/${id}/complete`),
   cancelBooking: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
+  getMessages: (id) => api.get(`/bookings/${id}/messages`),
+  sendMessage: (id, content) => api.post(`/bookings/${id}/messages`, { content }),
   createReview: (data) => api.post('/reviews', data),
 };
 

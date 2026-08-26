@@ -11,7 +11,7 @@ const STEPS = [
   { key: 'COMPLETED',   label: 'Completed',    icon: '🏁' },
 ];
 
-const STATUS_ORDER = ['REQUESTED', 'ACCEPTED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'REVIEWED'];
+const STATUS_ORDER = ['REQUESTED', 'ACCEPTED', 'PRICE_AGREED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'REVIEWED'];
 
 const StatusTimeline = ({ status }) => {
   if (status === 'CANCELLED') {
@@ -92,14 +92,26 @@ const BookingDetailPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [momoNumber, setMomoNumber] = useState('');
   
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completionPrice, setCompletionPrice] = useState('');
+  
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  
   const [error, setError] = useState('');
 
   const fetchBooking = useCallback(async () => {
     try {
       const res = await bookingAPI.getBookingById(id);
-      setBooking(res.data.booking);
+      if (res.data.success) {
+        setBooking(res.data.booking);
+        if (res.data.booking.status === 'ACCEPTED' || res.data.booking.status === 'PRICE_AGREED') {
+          const msgRes = await bookingAPI.getMessages(id);
+          setMessages(msgRes.data.messages);
+        }
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Booking not found.');
+      setError(err.response?.data?.message || 'Failed to load booking details.');
     } finally {
       setLoading(false);
     }
@@ -107,21 +119,51 @@ const BookingDetailPage = () => {
 
   useEffect(() => {
     fetchBooking();
-  }, [fetchBooking]);
+    // Simple polling for messages if accepted
+    const interval = setInterval(() => {
+      if (booking?.status === 'ACCEPTED' || booking?.status === 'PRICE_AGREED') {
+        bookingAPI.getMessages(id).then(res => setMessages(res.data.messages)).catch(()=>{});
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchBooking, booking?.status, id]);
 
-  const handleAction = async (action) => {
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+    try {
+      const res = await bookingAPI.sendMessage(id, newMessage);
+      setMessages([...messages, res.data.message]);
+      setNewMessage('');
+    } catch (err) {
+      alert('Failed to send message');
+    }
+  };
+
+  const handleAction = async (action, price = null) => {
+    if (action === 'agreePrice' && !price) {
+      setShowCompleteModal(true); // Using the same modal state for price agreement
+      return;
+    }
+    
     setActionLoading(action);
     try {
-      if (action === 'accept')    await bookingAPI.updateStatus(id, 'ACCEPTED');
-      if (action === 'start')     await bookingAPI.updateStatus(id, 'IN_PROGRESS');
-      if (action === 'complete')  await bookingAPI.completeBooking(id);
+      if (action === 'accept') await bookingAPI.updateStatus(id, 'ACCEPTED');
+      if (action === 'agreePrice') {
+        await bookingAPI.agreePrice(id, price);
+        setShowCompleteModal(false);
+      }
+      if (action === 'start') await bookingAPI.updateStatus(id, 'IN_PROGRESS');
+      if (action === 'complete') {
+        await bookingAPI.completeBooking(id);
+      }
       if (action === 'cancel') {
         await bookingAPI.cancelBooking(id);
         setShowCancelModal(false);
       }
       await fetchBooking();
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed. Please try again.');
+      alert(err.response?.data?.message || 'Action failed.');
     } finally {
       setActionLoading('');
     }
@@ -199,9 +241,10 @@ const BookingDetailPage = () => {
   const s = booking.status;
   const isProvider = role === 'PROVIDER';
   const isCustomer = role === 'CUSTOMER';
-  const canCancel = isCustomer && ['REQUESTED', 'ACCEPTED', 'SCHEDULED'].includes(s);
+  const canCancel = isCustomer && ['REQUESTED', 'ACCEPTED', 'PRICE_AGREED', 'SCHEDULED'].includes(s);
   const canAccept = isProvider && s === 'REQUESTED';
-  const canStart = isProvider && s === 'ACCEPTED';
+  const canSetPrice = isProvider && s === 'ACCEPTED';
+  const canStart = isProvider && s === 'PRICE_AGREED';
   const canComplete = isProvider && s === 'IN_PROGRESS';
   const canPay = isCustomer && s === 'COMPLETED';
   const canReview = isCustomer && (s === 'COMPLETED' || s === 'PAID') && !booking.review;
@@ -345,6 +388,66 @@ const BookingDetailPage = () => {
           </div>
         )}
 
+        {/* Price Negotiation Chat */}
+        {(s === 'ACCEPTED' || s === 'PRICE_AGREED') && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">💬 Negotiation & Chat</h2>
+            
+            <div className="bg-slate-50 border border-slate-200 rounded-xl flex flex-col h-80 mb-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center mt-20">No messages yet. Start negotiating!</p>
+                ) : (
+                  messages.map(msg => {
+                    const isMine = msg.senderId === user.id;
+                    return (
+                      <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                          isMine ? 'bg-emerald-600 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'
+                        }`}>
+                          <p className="font-semibold text-[10px] mb-1 opacity-70">
+                            {isMine ? 'You' : msg.sender?.firstName || 'User'} • {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="p-3 bg-white border-t border-slate-200 rounded-b-xl">
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 transition disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </form>
+              </div>
+            </div>
+            
+            {s === 'ACCEPTED' && isProvider && (
+              <p className="text-xs text-amber-600 font-semibold mt-2">
+                Once you and the customer agree on a price, click "Set Agreed Price" below.
+              </p>
+            )}
+            {s === 'PRICE_AGREED' && (
+              <p className="text-xs text-emerald-600 font-semibold mt-2">
+                Price has been agreed upon! Provider can now start the job.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h2 className="font-bold text-slate-800 mb-4">Actions</h2>
@@ -358,6 +461,15 @@ const BookingDetailPage = () => {
                 className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
               >
                 {actionLoading === 'accept' ? 'Accepting...' : '✅ Accept Job'}
+              </button>
+            )}
+            {canSetPrice && (
+              <button
+                onClick={() => handleAction('agreePrice')}
+                disabled={!!actionLoading}
+                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {actionLoading === 'agreePrice' ? 'Setting...' : '💰 Set Agreed Price'}
               </button>
             )}
             {canStart && (
@@ -502,6 +614,50 @@ const BookingDetailPage = () => {
                   className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition disabled:opacity-50"
                 >
                   {actionLoading === 'review' ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Job Modal / Agree Price Modal */}
+      {showCompleteModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">💰 Set Agreed Price</h3>
+            <p className="text-sm text-slate-600 mb-6">
+              Enter the final negotiated price. Once set, you can start the job!
+            </p>
+            <form onSubmit={(e) => { e.preventDefault(); handleAction('agreePrice', completionPrice); }}>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Agreed Price (GH₵)</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="0.01"
+                  placeholder="e.g. 150.00"
+                  value={completionPrice}
+                  onChange={(e) => setCompletionPrice(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCompleteModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'agreePrice'}
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50"
+                >
+                  {actionLoading === 'agreePrice' ? 'Saving...' : 'Set Price GH₵ ' + (completionPrice || '0')}
                 </button>
               </div>
             </form>

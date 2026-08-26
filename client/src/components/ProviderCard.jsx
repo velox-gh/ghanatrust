@@ -71,8 +71,8 @@ const ProviderCard = ({ provider }) => {
       <div className="p-6 pt-0 border-t border-slate-100 mt-auto bg-slate-50/50">
         <div className="flex items-center justify-between mt-4">
           <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">Starting Rate</span>
-            <span className="text-sm font-black text-slate-900">GH₵ 80.00</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Pricing</span>
+            <span className="text-sm font-black text-slate-900">Request Quote</span>
           </div>
 
           <Link

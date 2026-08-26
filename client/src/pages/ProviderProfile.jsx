@@ -198,7 +198,7 @@ const ProviderProfile = () => {
                       <span className="text-xs text-slate-500">{ps.service?.category?.name}</span>
                     </div>
                     <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">
-                      GH₵ {ps.price || 80.00} {ps.priceUnit || 'per job'}
+                      Request Quote
                     </span>
                   </div>
                 ))}
@@ -280,13 +280,13 @@ const ProviderProfile = () => {
                   <option value="">-- Select a service --</option>
                   {provider.services?.map((ps) => (
                     <option key={ps.service.id} value={String(ps.service.id)}>
-                      {ps.service.name}{ps.price ? ` — GH₵ ${ps.price} ${ps.priceUnit || 'per job'}` : ''}
+                      {ps.service.name}
                     </option>
                   ))}
                 </select>
                 {selectedProviderService && (
                   <p className="text-xs text-emerald-700 font-semibold mt-1.5">
-                    💰 Rate: GH₵ {selectedProviderService.price || '—'} {selectedProviderService.priceUnit || 'per job'}
+                    💰 Price will be negotiated after booking request
                   </p>
                 )}
                 {provider.services?.length === 0 && (

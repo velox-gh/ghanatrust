@@ -22,6 +22,7 @@ enum VerificationStatus {
 enum BookingStatus {
   REQUESTED
   ACCEPTED
+  PRICE_AGREED
   SCHEDULED
   IN_PROGRESS
   COMPLETED
