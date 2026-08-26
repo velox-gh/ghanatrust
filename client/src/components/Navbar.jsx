@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTour } from '../context/TourContext';
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
+  const { startTour } = useTour();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -38,24 +40,31 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
-            <a
-              href="/"
-              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5"
+            <Link
+              to="/"
+              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5 tour-home"
             >
               <span>🛡️</span> Home
-            </a>
+            </Link>
             <Link
               to="/services"
-              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5"
+              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5 tour-find-services"
             >
               <span>🔍</span> Find Services
             </Link>
-            <a
-              href="#how-it-works"
-              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5"
+            <button
+              onClick={() => {
+                if (window.location.pathname !== '/') {
+                  navigate('/');
+                  setTimeout(startTour, 500); // Wait for navigation
+                } else {
+                  startTour();
+                }
+              }}
+              className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition flex items-center gap-1.5 tour-how-it-works"
             >
-              <span></span> How Trust Works
-            </a>
+              <span>ℹ️</span> How Trust Works
+            </button>
           </nav>
 
           {/* Desktop User Actions */}
@@ -64,7 +73,7 @@ const Navbar = () => {
               <div className="flex items-center gap-4">
                 <Link
                   to="/dashboard"
-                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm px-4 py-2.5 rounded-xl border border-slate-200 transition"
+                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm px-4 py-2.5 rounded-xl border border-slate-200 transition tour-dashboard"
                 >
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>Dashboard</span>
@@ -98,7 +107,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 transition transform hover:-translate-y-0.5"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 transition transform hover:-translate-y-0.5 tour-join"
                 >
                   Join GhanaTrust
                 </Link>

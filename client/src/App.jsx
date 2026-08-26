@@ -1,8 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { TourProvider } from './context/TourContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import TourComponent from './components/TourComponent';
 
 // Pages
 import Home from './pages/Home';
@@ -25,27 +27,30 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-          <Navbar />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/services/:id" element={<ServiceDetails />} />
-              <Route path="/providers/:id" element={<ProviderProfile />} />
-              <Route path="/search" element={<SearchResults />} />
-              <Route path="/booking/:serviceId" element={<Booking />} />
-              <Route path="/my-bookings" element={<MyBookings />} />
-              <Route path="/my-bookings/:id" element={<BookingDetailPage />} />
-              <Route path="/payments" element={<Payments />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
+        <TourProvider>
+          <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+            <TourComponent />
+            <Navbar />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/services/:id" element={<ServiceDetails />} />
+                <Route path="/providers/:id" element={<ProviderProfile />} />
+                <Route path="/search" element={<SearchResults />} />
+                <Route path="/booking/:serviceId" element={<Booking />} />
+                <Route path="/my-bookings" element={<MyBookings />} />
+                <Route path="/my-bookings/:id" element={<BookingDetailPage />} />
+                <Route path="/payments" element={<Payments />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </TourProvider>
       </AuthProvider>
     </Router>
   );

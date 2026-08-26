@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTour } from '../context/TourContext';
 import { serviceAPI } from '../services/api';
 
 const Register = () => {
@@ -25,6 +26,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
+  const { startTour } = useTour();
   const navigate = useNavigate();
 
   // Load categories when provider role selected
@@ -82,6 +84,9 @@ const Register = () => {
       const result = await register(userData);
       if (result.success) {
         navigate('/dashboard');
+        setTimeout(() => {
+          startTour();
+        }, 1000); // give it a sec to mount dashboard and navbar user menu
       } else {
         setError(result.error || 'Registration failed');
       }
