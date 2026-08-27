@@ -78,6 +78,13 @@ const Navbar = () => {
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>Dashboard</span>
                 </Link>
+                
+                <Link
+                  to="/disputes"
+                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-sm px-4 py-2.5 rounded-xl border border-slate-200 transition"
+                >
+                  <span>⚖️ Disputes</span>
+                </Link>
 
                 <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
                   <div className="text-right">
@@ -145,6 +152,13 @@ const Navbar = () => {
                 className="block text-slate-700 font-semibold py-2"
               >
                 📊 Dashboard ({user?.firstName})
+              </Link>
+              <Link
+                to="/disputes"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-slate-700 font-semibold py-2"
+              >
+                ⚖️ Disputes
               </Link>
               <button
                 onClick={() => {

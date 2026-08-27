@@ -19,6 +19,8 @@ import MyBookings from './pages/MyBookings';
 import BookingDetailPage from './pages/BookingDetailPage';
 import Payments from './pages/Payments';
 import NotFound from './pages/NotFound';
+import DisputesList from './pages/DisputesList';
+import DisputeDetail from './pages/DisputeDetail';
 
 // Dashboards
 import Dashboard from './dashboards/Dashboard';
@@ -45,6 +47,8 @@ function App() {
                 <Route path="/my-bookings/:id" element={<BookingDetailPage />} />
                 <Route path="/payments" element={<Payments />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/disputes" element={<DisputesList />} />
+                <Route path="/disputes/:id" element={<DisputeDetail />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

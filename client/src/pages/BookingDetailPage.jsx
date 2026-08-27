@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { bookingAPI, paymentAPI } from '../services/api';
+import { bookingAPI, paymentAPI, disputeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Status Step Timeline ─────────────────────────────────────────────────────
@@ -98,6 +98,9 @@ const BookingDetailPage = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
   const [error, setError] = useState('');
 
   const fetchBooking = useCallback(async () => {
@@ -213,6 +216,24 @@ const BookingDetailPage = () => {
 
     } catch (err) {
       alert(err.message || 'Failed to initiate payment.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleDisputeSubmit = async (e) => {
+    e.preventDefault();
+    if (!disputeReason) return;
+    try {
+      setActionLoading('dispute');
+      const res = await disputeAPI.createDispute({ bookingId: id, reason: disputeReason, description: disputeDescription });
+      if (res.data.success) {
+        alert('Dispute submitted successfully');
+        setShowDisputeModal(false);
+        navigate(`/disputes/${res.data.data.id}`);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to file dispute');
     } finally {
       setActionLoading('');
     }
@@ -516,6 +537,15 @@ const BookingDetailPage = () => {
                 ❌ Cancel Booking
               </button>
             )}
+            
+            {s !== 'CANCELLED' && s !== 'REQUESTED' && s !== 'REJECTED' && (isCustomer || isProvider) && (
+              <button
+                onClick={() => setShowDisputeModal(true)}
+                className="px-6 py-2.5 bg-orange-100 text-orange-800 border border-orange-300 font-bold rounded-xl hover:bg-orange-200 transition"
+              >
+                ⚖️ File a Dispute
+              </button>
+            )}
 
             {/* Always: Back */}
             <Link
@@ -703,6 +733,63 @@ const BookingDetailPage = () => {
                   className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50"
                 >
                   {actionLoading === 'payment' ? 'Processing...' : 'Pay GH₵ ' + (booking.price?.toFixed(2) || '0.00')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dispute Modal */}
+      {showDisputeModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">File a Dispute</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Having issues with this booking? Describe the problem below. Our admin team will investigate.
+            </p>
+            <form onSubmit={handleDisputeSubmit}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Dispute *</label>
+                <select
+                  required
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                >
+                  <option value="">Select a reason...</option>
+                  <option value="No Show">No Show</option>
+                  <option value="Poor Quality">Poor Quality of Work</option>
+                  <option value="Unprofessional Behavior">Unprofessional Behavior</option>
+                  <option value="Payment Issue">Payment Issue</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Additional Details</label>
+                <textarea
+                  value={disputeDescription}
+                  onChange={(e) => setDisputeDescription(e.target.value)}
+                  rows={4}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  placeholder="Please provide any additional context..."
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDisputeModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'dispute'}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-bold hover:bg-orange-700 transition disabled:opacity-50"
+                >
+                  {actionLoading === 'dispute' ? 'Submitting...' : 'Submit Dispute'}
                 </button>
               </div>
             </form>

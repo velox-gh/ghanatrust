@@ -8,10 +8,11 @@ import {
   removeProviderService
 } from '../controllers/providerController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
+import { cacheRoute } from '../middleware/cacheMiddleware.js';
 
 const router = express.Router();
 
-router.get('/', getProviders);
+router.get('/', cacheRoute(120), getProviders);
 router.post('/verifications', protect, authorize('PROVIDER'), submitVerification);
 router.get('/verifications/me', protect, authorize('PROVIDER'), getMyVerifications);
 
@@ -19,6 +20,6 @@ router.get('/verifications/me', protect, authorize('PROVIDER'), getMyVerificatio
 router.post('/services', protect, authorize('PROVIDER'), addProviderService);
 router.delete('/services/:id', protect, authorize('PROVIDER'), removeProviderService);
 
-router.get('/:id', getProviderById);
+router.get('/:id', cacheRoute(120), getProviderById);
 
 export default router;

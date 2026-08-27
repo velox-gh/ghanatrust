@@ -4,6 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -70,6 +71,16 @@ export const paymentAPI = {
 export const adminAPI = {
   getVerifications: () => api.get('/admin/verifications'),
   updateVerificationStatus: (id, data) => api.put(`/admin/verifications/${id}/status`, data),
+};
+
+// Dispute endpoints
+export const disputeAPI = {
+  createDispute: (data) => api.post('/disputes', data),
+  getDisputes: () => api.get('/disputes'),
+  getDisputeById: (id) => api.get(`/disputes/${id}`),
+  uploadEvidence: (id, data) => api.post(`/disputes/${id}/evidence`, data),
+  investigateDispute: (id, data) => api.patch(`/disputes/${id}/investigate`, data),
+  resolveDispute: (id, data) => api.patch(`/disputes/${id}/resolve`, data),
 };
 
 export default api;
