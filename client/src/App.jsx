@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { TourProvider } from './context/TourContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -29,9 +30,10 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <TourProvider>
-          <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-            <TourComponent />
+        <SocketProvider>
+          <TourProvider>
+            <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+              <TourComponent />
             <Navbar />
             <main className="flex-grow">
               <Routes>
@@ -55,6 +57,7 @@ function App() {
             <Footer />
           </div>
         </TourProvider>
+        </SocketProvider>
       </AuthProvider>
     </Router>
   );

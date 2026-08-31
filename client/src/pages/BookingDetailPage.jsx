@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { bookingAPI, paymentAPI, disputeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 
 // ─── Status Step Timeline ─────────────────────────────────────────────────────
 const STEPS = [
@@ -120,23 +121,46 @@ const BookingDetailPage = () => {
     }
   }, [id]);
 
+  const { socket } = useSocket();
+
   useEffect(() => {
     fetchBooking();
-    // Simple polling for messages if accepted
-    const interval = setInterval(() => {
-      if (booking?.status === 'ACCEPTED' || booking?.status === 'PRICE_AGREED') {
-        bookingAPI.getMessages(id).then(res => setMessages(res.data.messages)).catch(()=>{});
+  }, [fetchBooking]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // Join the booking room
+    socket.emit('join_booking', id);
+
+    // Listen for new messages
+    const handleNewMessage = (msg) => {
+      if (msg.bookingId === parseInt(id)) {
+        setMessages((prev) => [...prev, msg]);
       }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchBooking, booking?.status, id]);
+    };
+
+    // Listen for booking status updates
+    const handleBookingUpdate = (updatedBooking) => {
+      if (updatedBooking.id === parseInt(id)) {
+        setBooking(updatedBooking);
+      }
+    };
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('booking_updated', handleBookingUpdate);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('booking_updated', handleBookingUpdate);
+    };
+  }, [socket, id]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
     try {
-      const res = await bookingAPI.sendMessage(id, newMessage);
-      setMessages([...messages, res.data.message]);
+      await bookingAPI.sendMessage(id, newMessage);
       setNewMessage('');
     } catch (err) {
       alert('Failed to send message');

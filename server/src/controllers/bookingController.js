@@ -1,4 +1,6 @@
 import prisma from '../config/database.js';
+import { sendBookingConfirmation } from '../services/emailService.js';
+import { getIO } from '../services/socketService.js';
 
 // @desc    Create new booking request
 // @route   POST /api/bookings
@@ -44,6 +46,17 @@ export const createBooking = async (req, res) => {
         },
       });
     } catch (_) { /* notification failure should not block booking */ }
+
+    // Send booking confirmation email
+    try {
+      const providerUser = await prisma.user.findUnique({
+        where: { id: booking.provider.userId },
+        select: { email: true, firstName: true },
+      });
+      if (providerUser?.email) {
+        await sendBookingConfirmation(booking, providerUser.email, providerUser.firstName);
+      }
+    } catch (_) { /* email failure should not block booking */ }
 
     res.status(201).json({ success: true, booking });
   } catch (error) {
@@ -197,8 +210,23 @@ export const updateBookingStatus = async (req, res) => {
         service: true,
         location: true,
         review: true,
+        payment: true,
       },
     });
+
+    try {
+      const io = getIO();
+      // Notify customer that the provider updated the status
+      io.to(`user_${booking.customerId}`).emit('new_notification', {
+        title: 'Booking Updated',
+        body: `Your booking for ${booking.service.name} is now ${status.replace('_', ' ')}.`,
+        link: `/my-bookings/${bookingId}`
+      });
+      // Also emit an update to the booking room so UI can refresh
+      io.to(`booking_${bookingId}`).emit('booking_updated', updated);
+    } catch (err) {
+      console.error('Socket error:', err);
+    }
 
     // Notify customer
     try {
@@ -452,6 +480,21 @@ export const sendMessage = async (req, res) => {
       },
       include: { sender: { select: { id: true, firstName: true } } }
     });
+
+    // Emit real-time message to the booking room and receiver's personal room
+    try {
+      const io = getIO();
+      // To people looking at the booking chat
+      io.to(`booking_${bookingId}`).emit('new_message', message);
+      // To the receiver for global notifications
+      io.to(`user_${receiverId}`).emit('new_notification', {
+        title: 'New Message',
+        body: `You have a new message from ${message.sender.firstName}`,
+        link: `/my-bookings/${bookingId}`
+      });
+    } catch (socketErr) {
+      console.error('Socket error:', socketErr);
+    }
 
     res.status(201).json({ success: true, message });
   } catch (error) {

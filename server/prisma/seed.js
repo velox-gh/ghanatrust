@@ -112,14 +112,45 @@ async function main() {
     { name: 'Cleaning & Janitorial', icon: '🧹', description: 'Post-construction cleaning, residential deep clean, and fumigation.' },
   ];
 
+  const createdCategories = [];
   for (const cat of categories) {
-    await prisma.category.upsert({
+    const created = await prisma.category.upsert({
       where: { name: cat.name },
       update: {},
       create: cat,
     });
+    createdCategories.push(created);
   }
   console.log('✅ Service categories created');
+
+  // 7. Seed Services
+  const servicesMap = {
+    'Electrical': ['Electrical Wiring', 'Solar Installation', 'Generator Repair', 'Electrical Inspection', 'Fault Detection'],
+    'Plumbing': ['Pipe Fitting', 'Leak Repairs', 'Borehole Maintenance', 'Bathroom Fitting', 'Drain Unblocking'],
+    'AC & Refrigeration': ['AC Installation', 'AC Servicing', 'Fridge Repairs', 'AC Gas Refill', 'Vent Cleaning'],
+    'Carpentry & Woodwork': ['Custom Furniture', 'Roof Framework', 'Cabinet Making', 'Door Installation', 'Wood Flooring'],
+    'Painting & Decorating': ['Interior Painting', 'Exterior Painting', 'POP Ceiling', 'Wall Texturing', 'Wallpaper Installation'],
+    'Cleaning & Janitorial': ['Post-Construction Cleaning', 'Residential Deep Clean', 'Fumigation', 'Office Cleaning', 'Carpet Cleaning'],
+  };
+
+  for (const cat of createdCategories) {
+    const serviceNames = servicesMap[cat.name] || [];
+    for (const serviceName of serviceNames) {
+      const existing = await prisma.service.findFirst({
+        where: { name: serviceName, categoryId: cat.id },
+      });
+      if (!existing) {
+        await prisma.service.create({
+          data: {
+            name: serviceName,
+            description: `${serviceName} services under ${cat.name}.`,
+            categoryId: cat.id,
+          },
+        });
+      }
+    }
+  }
+  console.log('✅ Services created');
 
   console.log('🎉 Database seeding completed successfully!');
 }

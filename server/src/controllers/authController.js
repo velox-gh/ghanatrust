@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment.js';
 import prisma from '../config/database.js';
+import { sendEmail } from '../services/emailService.js';
 
 // Generate JWT
 const generateToken = (id) => {
@@ -66,6 +67,25 @@ export const register = async (req, res) => {
     }
 
     const token = generateToken(user.id);
+
+    // Send welcome email
+    try {
+      const welcomeSubject = role === 'PROVIDER' ? 'Welcome to GhanaTrust - Provider Account Created' : 'Welcome to GhanaTrust';
+      const welcomeText = `Hi ${firstName},\n\nWelcome to GhanaTrust! Your account has been created successfully.\n\nEmail: ${email}\nRole: ${role}\n\nLog in at http://localhost:5000 to get started.`;
+      const welcomeHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">Welcome to GhanaTrust!</h2>
+          <p>Hi ${firstName},</p>
+          <p>Your account has been created successfully.</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Role:</strong> ${role}</p>
+          <p>Log in at <a href="http://localhost:5000">GhanaTrust</a> to get started.</p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 12px;">GhanaTrust - Building a trusted digital marketplace for Ghana's local service economy.</p>
+        </div>
+      `;
+      await sendEmail({ to: email, subject: welcomeSubject, html: welcomeHtml, text: welcomeText });
+    } catch (_) { /* email failure should not block registration */ }
 
     res.status(201).json({
       success: true,

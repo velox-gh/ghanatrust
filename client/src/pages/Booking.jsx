@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const Booking = () => {
+  const { serviceId: routeServiceId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   
   const queryParams = new URLSearchParams(location.search);
-  const serviceId = queryParams.get('service');
   const providerId = queryParams.get('provider');
+  const serviceId = routeServiceId || queryParams.get('service');
 
   const [service, setService] = useState(null);
   const [provider, setProvider] = useState(null);

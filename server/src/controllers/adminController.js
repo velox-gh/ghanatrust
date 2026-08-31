@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { sendVerificationUpdate } from '../services/emailService.js';
 
 // @desc    Get all verification requests
 // @route   GET /api/admin/verifications
@@ -70,6 +71,17 @@ export const updateVerificationStatus = async (req, res) => {
         });
       }
     }
+
+    // Send verification update email
+    try {
+      const providerUser = await prisma.user.findUnique({
+        where: { id: request.userId },
+        select: { email: true, firstName: true },
+      });
+      if (providerUser?.email) {
+        await sendVerificationUpdate(providerUser.email, providerUser.firstName, request.type, status);
+      }
+    } catch (_) { /* email failure should not block status update */ }
 
     res.json({
       success: true,
