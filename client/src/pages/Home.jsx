@@ -1,8 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  MagnifyingGlass, MapPin, ShieldCheck, SealCheck, Trophy, ArrowRight,
+  Handshake, Phone, IdentificationCard, Certificate, TrendUp, UsersThree,
+} from '@phosphor-icons/react';
 import { serviceAPI, providerAPI } from '../services/api';
 import ProviderCard from '../components/ProviderCard';
 import ServiceCard from '../components/ServiceCard';
+import Button from '../components/ui/Button';
+import Skeleton from '../components/ui/Skeleton';
+import TrustBadge from '../components/ui/TrustBadge';
+
+// Proof-strip content — the numbers behind the trust claim
+const PROOF_STATS = [
+  { icon: ShieldCheck, value: '3-Level', label: 'Verification System' },
+  { icon: UsersThree, value: '1,000+', label: 'Verified Artisans' },
+  { icon: TrendUp, value: '95%+', label: 'Job Completion Rate' },
+  { icon: Handshake, value: '100%', label: 'Ghana Card Checked' },
+];
+
+// The 3-level verification ladder — Level 3 earns the gold treatment
+const TRUST_LEVELS = [
+  {
+    level: 1,
+    icon: IdentificationCard,
+    title: 'Identity Verified',
+    color: 'blue',
+    points: ['Government-issued Ghana Card validation', 'Phone number verified via MoMo', 'Residence & emergency contact records'],
+    badge: 'bg-blue-50 text-blue-700 border-blue-200',
+    iconBg: 'bg-blue-100 text-blue-700',
+  },
+  {
+    level: 2,
+    icon: Certificate,
+    title: 'Profession Verified',
+    color: 'emerald',
+    points: ['Trade certifications checked', 'Master apprenticeship evidence', 'Workplace or shop inspection'],
+    badge: 'bg-trust-50 text-trust-700 border-trust-200',
+    iconBg: 'bg-trust-100 text-trust-700',
+  },
+  {
+    level: 3,
+    icon: Trophy,
+    title: 'Trusted Professional',
+    color: 'gold',
+    points: ['20+ completed jobs on record', '95%+ completion rate', 'Verified customer star reviews'],
+    badge: 'bg-gold-50 text-gold-700 border-gold-200',
+    iconBg: 'bg-gold-100 text-gold-700',
+  },
+];
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
@@ -37,47 +83,62 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Hero Section */}
-      <section className="relative bg-slate-900 text-white overflow-hidden py-20 lg:py-28">
+    <div className="bg-navy-50">
+      {/* ============ HERO — one primary CTA: search ============ */}
+      <section className="relative overflow-hidden bg-navy-900 py-20 text-white lg:py-28">
         {/* Decorative Background Gradients */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl -z-0 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl -z-0 pointer-events-none"></div>
+        <div className="pointer-events-none absolute -z-0 right-0 top-0 h-96 w-96 rounded-full bg-trust-600/20 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute -z-0 bottom-0 left-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" aria-hidden="true" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
             {/* Trust Pill */}
-            <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-4 py-1.5 rounded-full text-xs font-semibold text-emerald-400 mb-6 shadow-inner">
-              <span></span> Ghana's Trust-First Service Marketplace
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-navy-700 bg-navy-800/80 px-4 py-1.5 text-xs font-semibold text-trust-300">
+              <ShieldCheck aria-hidden="true" weight="fill" size={14} />
+              Ghana's Trust-First Service Marketplace
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6">
-              Who Can You <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-300">Trust</span> To Do The Job?
+            <h1 className="mb-6 text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              Who Can You{' '}
+              <span className="bg-gradient-to-r from-trust-400 via-teal-300 to-indigo-300 bg-clip-text text-transparent">
+                Trust
+              </span>{' '}
+              To Do The Job?
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Connect with identity-verified local electricians, plumbers, AC technicians, and carpenters across Ghana. Verified Ghana Card profiles, transparent trust scores.
+            <p className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              Connect with identity-verified local electricians, plumbers, AC technicians, and carpenters
+              across Ghana. Verified Ghana Card profiles, transparent trust scores.
             </p>
 
             {/* Hero Search Box */}
-            <form onSubmit={handleSearchSubmit} className="bg-white p-3 sm:p-4 rounded-2xl shadow-2xl border border-slate-200/50 max-w-2xl mx-auto flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-400 text-lg">🔍</span>
+            <form
+              onSubmit={handleSearchSubmit}
+              role="search"
+              aria-label="Find a service professional"
+              className="mx-auto flex max-w-2xl flex-col gap-3 rounded-2xl border border-slate-200/50 bg-white p-3 shadow-2xl sm:flex-row sm:p-4"
+            >
+              <div className="flex flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-trust-500 focus-within:ring-2 focus-within:ring-trust-500/30">
+                <MagnifyingGlass aria-hidden="true" size={18} className="shrink-0 text-slate-400" />
+                <label htmlFor="hero-search" className="sr-only-x">What service do you need?</label>
                 <input
+                  id="hero-search"
                   type="text"
                   placeholder="e.g. Electrician, AC Repair, Plumbing..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-sm font-medium focus:outline-none"
+                  className="w-full bg-transparent text-sm font-medium text-navy-900 placeholder-slate-400 focus:outline-none"
                 />
               </div>
 
-              <div className="sm:w-44 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-400 text-lg">📍</span>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-trust-500 sm:w-48">
+                <MapPin aria-hidden="true" weight="fill" size={18} className="shrink-0 text-slate-400" />
+                <label htmlFor="hero-region" className="sr-only-x">Select region</label>
                 <select
+                  id="hero-region"
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="w-full bg-transparent text-slate-900 text-sm font-medium focus:outline-none cursor-pointer"
+                  className="w-full cursor-pointer bg-transparent text-sm font-medium text-navy-900 focus:outline-none"
                 >
                   <option value="">All Regions</option>
                   <option value="Ashanti">Ashanti (Kumasi)</option>
@@ -87,105 +148,129 @@ const Home = () => {
                 </select>
               </div>
 
-              <button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-lg shadow-emerald-600/30 transition transform hover:-translate-y-0.5"
-              >
+              <Button type="submit" size="lg" className="sm:!px-6">
                 Search Pros
-              </button>
+              </Button>
             </form>
 
             {/* Quick Badges */}
-            <div className="mt-8 flex flex-wrap justify-center gap-6 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">🟢 Ghana Card ID Verified</span>
-              <span className="flex items-center gap-1.5">🟢 MoMo Phone Verified</span>
-              <span className="flex items-center gap-1.5">🟢 Trade Skill Certified</span>
+            <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck aria-hidden="true" weight="fill" size={13} className="text-trust-400" /> Ghana Card ID Verified
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Phone aria-hidden="true" weight="fill" size={13} className="text-trust-400" /> MoMo Phone Verified
+              </span>
+              <span className="flex items-center gap-1.5">
+                <SealCheck aria-hidden="true" weight="fill" size={13} className="text-trust-400" /> Trade Skill Certified
+              </span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trust Levels Section */}
-      <section id="how-it-works" className="py-16 bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2">
+      {/* ============ PROOF STRIP ============ */}
+      <section aria-label="GhanaTrust by the numbers" className="border-b border-navy-800 bg-navy-950">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 divide-navy-800 px-4 py-8 sm:px-6 md:grid-cols-4 md:divide-x lg:px-8">
+          {PROOF_STATS.map(({ icon: Icon, value, label }) => (
+            <div key={label} className="flex items-center justify-center gap-3 px-4 py-2">
+              <Icon aria-hidden="true" weight="duotone" size={28} className="text-trust-500" />
+              <div>
+                <p className="text-xl font-black tracking-tight text-white tabular-nums">{value}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ THE TRUST LADDER — solution ============ */}
+      <section id="how-it-works" className="border-b border-slate-200 bg-white py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-trust-600">
               The GhanaTrust Differentiator
             </h2>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-3xl font-black tracking-tight text-navy-900">
               Our 3-Level Verification System
             </h3>
-            <p className="text-sm text-slate-600 mt-2">
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
               We eliminate uncertainty by thoroughly vetting every professional before they serve your home or business.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xl mb-4">
-                1
-              </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Level 1 — Identity Verified</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Government-issued Ghana Card & Phone Number verification. Validates real identity, residence, and emergency contact records.
-              </p>
-            </div>
-
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xl mb-4">
-                2
-              </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Level 2 — Profession Verified</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Trade certifications, master apprenticeship evidence, past job references, and physical workplace inspection.
-              </p>
-            </div>
-
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xl mb-4">
-                3
-              </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Level 3 — Trusted Professional</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Consistent track record of 20+ completed jobs, 95%+ completion rate, and verified customer star reviews.
-              </p>
-            </div>
-          </div>
+          {/* Connected ladder: each level builds on the last */}
+          <ol className="relative mx-auto max-w-4xl space-y-6">
+            {TRUST_LEVELS.map(({ level, icon: Icon, title, points, badge, iconBg }, i) => (
+              <li key={level} className="relative">
+                {/* Connector line to the next level */}
+                {i < TRUST_LEVELS.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-7 top-16 h-[calc(100%-2rem)] w-px bg-gradient-to-b from-slate-300 to-slate-200"
+                  />
+                )}
+                <div className="relative flex gap-5 rounded-3xl border border-slate-200/80 bg-slate-50/60 p-6 shadow-card transition duration-200 hover:shadow-lift sm:p-8">
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${iconBg}`}>
+                    <Icon aria-hidden="true" weight="duotone" size={28} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <TrustBadge level={level} />
+                      <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${badge}`}>
+                        Level {level}
+                      </span>
+                    </div>
+                    <h4 className="mb-1.5 text-lg font-bold tracking-tight text-navy-900">{title}</h4>
+                    <ul className="grid gap-1.5 sm:grid-cols-3">
+                      {points.map((point) => (
+                        <li key={point} className="flex items-start gap-1.5 text-xs leading-relaxed text-slate-600">
+                          <SealCheck aria-hidden="true" weight="fill" size={13} className="mt-0.5 shrink-0 text-trust-500" />
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      {/* Featured Verified Artisans */}
-      <section className="py-16 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10">
+      {/* ============ FEATURED VERIFIED ARTISANS ============ */}
+      <section className="bg-navy-50 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col justify-between items-start md:flex-row md:items-end">
             <div>
-              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
+              <span className="mb-1 block text-xs font-bold uppercase tracking-widest text-trust-600">
                 Verified Professionals
               </span>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+              <h3 className="text-3xl font-black tracking-tight text-navy-900">
                 Featured Ghanaian Artisans
               </h3>
             </div>
             <Link
               to="/services"
-              className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition mt-4 md:mt-0 flex items-center gap-1"
+              className="group mt-4 flex items-center gap-1 text-sm font-bold text-trust-600 transition hover:text-trust-700 md:mt-0"
             >
-              View All Verified Pros →
+              View All Verified Pros
+              <ArrowRight aria-hidden="true" weight="bold" size={14} className="transition group-hover:translate-x-0.5" />
             </Link>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-64 bg-slate-200 rounded-2xl animate-pulse"></div>
-              ))}
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+              <Skeleton className="h-72 rounded-2xl" />
+              <Skeleton className="h-72 rounded-2xl" />
+              <Skeleton className="h-72 rounded-2xl" />
             </div>
           ) : providers.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+            <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center">
               <p className="text-slate-500">No verified providers found yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {providers.slice(0, 3).map((provider) => (
                 <ProviderCard key={provider.id} provider={provider} />
               ))}
@@ -194,22 +279,44 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Categories Grid */}
-      <section className="py-16 bg-white border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
+      {/* ============ CATEGORIES GRID ============ */}
+      <section className="border-t border-slate-200 bg-white py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-widest text-trust-600">
               Top Categories
             </span>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-3xl font-black tracking-tight text-navy-900">
               Explore Services By Category
             </h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
             {categories.map((category) => (
               <ServiceCard key={category.id} category={category} />
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CTA BAND ============ */}
+      <section className="bg-navy-900 py-16">
+        <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+          <h3 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+            Ready to hire with confidence?
+          </h3>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-300">
+            Join thousands of Ghanaian households and businesses who never have to ask
+            &ldquo;who can I trust?&rdquo; again.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button to="/services" size="lg">
+              Find a Professional
+              <ArrowRight aria-hidden="true" weight="bold" size={15} />
+            </Button>
+            <Button to="/register" variant="onDark" size="lg">
+              Become a Verified Pro
+            </Button>
           </div>
         </div>
       </section>

@@ -33,11 +33,8 @@ export const SocketProvider = ({ children }) => {
 
       // Global notification listener
       newSocket.on('new_notification', (data) => {
-        // Here you could integrate a toast library like react-hot-toast or similar
-        // For now, we'll just log or use browser alert
+        // TODO: surface via a toast system (e.g. react-hot-toast) instead of console
         console.log('New notification received:', data);
-        // You can uncomment below for a simple browser alert if desired
-        // alert(`🔔 ${data.title}\n${data.body}`);
       });
 
       setSocket(newSocket);

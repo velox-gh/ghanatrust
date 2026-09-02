@@ -1,15 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  Clock, CheckCircle, Handshake, CalendarCheck, Wrench, FlagCheckered,
+  CurrencyCircleDollar, Star, XCircle, ClipboardText, Users, Chats, CreditCard,
+  Scales, MapPin, PaperPlaneRight, ArrowLeft,
+} from '@phosphor-icons/react';
 import { bookingAPI, paymentAPI, disputeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import {
+  Button, Card, StatusBadge, Field, Modal, Alert, Rating, Spinner, EmptyState,
+} from '../components/ui';
 
 // ─── Status Step Timeline ─────────────────────────────────────────────────────
 const STEPS = [
-  { key: 'REQUESTED',   label: 'Requested',   icon: '📋' },
-  { key: 'ACCEPTED',    label: 'Accepted',     icon: '✅' },
-  { key: 'IN_PROGRESS', label: 'In Progress',  icon: '🔧' },
-  { key: 'COMPLETED',   label: 'Completed',    icon: '🏁' },
+  { key: 'REQUESTED',     label: 'Requested',     icon: Clock },
+  { key: 'ACCEPTED',      label: 'Accepted',      icon: CheckCircle },
+  { key: 'PRICE_AGREED',  label: 'Price Agreed',  icon: Handshake },
+  { key: 'SCHEDULED',     label: 'Scheduled',     icon: CalendarCheck },
+  { key: 'IN_PROGRESS',   label: 'In Progress',   icon: Wrench },
+  { key: 'COMPLETED',     label: 'Completed',     icon: FlagCheckered },
+  { key: 'PAID',          label: 'Paid',          icon: CurrencyCircleDollar },
+  { key: 'REVIEWED',      label: 'Reviewed',      icon: Star },
 ];
 
 const STATUS_ORDER = ['REQUESTED', 'ACCEPTED', 'PRICE_AGREED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'REVIEWED'];
@@ -17,11 +29,11 @@ const STATUS_ORDER = ['REQUESTED', 'ACCEPTED', 'PRICE_AGREED', 'SCHEDULED', 'IN_
 const StatusTimeline = ({ status }) => {
   if (status === 'CANCELLED') {
     return (
-      <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-        <span className="text-2xl">❌</span>
+      <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+        <XCircle aria-hidden="true" weight="fill" size={24} className="shrink-0 text-red-500" />
         <div>
           <p className="font-bold text-red-700">Booking Cancelled</p>
-          <p className="text-xs text-red-500">This booking was cancelled and is no longer active.</p>
+          <p className="text-xs text-red-600">This booking was cancelled and is no longer active.</p>
         </div>
       </div>
     );
@@ -31,39 +43,44 @@ const StatusTimeline = ({ status }) => {
 
   return (
     <div className="relative">
-      <div className="flex items-center justify-between relative">
+      <div className="relative flex items-start justify-between overflow-x-auto pb-1">
         {/* Progress bar */}
-        <div className="absolute left-0 right-0 top-5 h-1 bg-slate-200 z-0">
+        <div className="absolute left-0 right-0 top-4 z-0 h-1 bg-slate-200 sm:top-5" aria-hidden="true">
           <div
-            className="h-full bg-emerald-500 transition-all duration-500"
-            style={{ width: `${Math.max(0, (Math.min(currentIdx, 3) / 3) * 100)}%` }}
+            className="h-full bg-trust-500 transition-all duration-500"
+            style={{ width: `${Math.max(0, (currentIdx / (STATUS_ORDER.length - 1)) * 100)}%` }}
           />
         </div>
 
-        {STEPS.map((step, i) => {
+        {STEPS.map((step) => {
+          const StepIcon = step.icon;
           const stepIdx = STATUS_ORDER.indexOf(step.key);
           const isDone = currentIdx > stepIdx;
-          const isActive = STATUS_ORDER.indexOf(status) === stepIdx ||
-            (step.key === 'IN_PROGRESS' && status === 'SCHEDULED');
-          const isFuture = !isDone && !isActive;
+          const isActive = currentIdx === stepIdx;
 
           return (
-            <div key={step.key} className="relative z-10 flex flex-col items-center gap-1.5 flex-1">
+            <div key={step.key} className="relative z-10 flex min-w-14 flex-1 flex-col items-center gap-1.5">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition ${
+                className={[
+                  'flex h-8 w-8 items-center justify-center rounded-full border-2 transition sm:h-10 sm:w-10',
                   isDone
-                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                    ? 'border-trust-500 bg-trust-500 text-white'
                     : isActive
-                    ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100'
-                    : 'bg-white border-slate-300 text-slate-400'
-                }`}
+                      ? 'border-trust-600 bg-trust-600 text-white ring-4 ring-trust-100'
+                      : 'border-slate-300 bg-white text-slate-400',
+                ].join(' ')}
               >
-                {isDone ? '✓' : step.icon}
+                {isDone ? (
+                  <CheckCircle aria-hidden="true" weight="fill" size={20} />
+                ) : (
+                  <StepIcon aria-hidden="true" weight={isActive ? 'fill' : 'regular'} size={16} />
+                )}
               </div>
               <span
-                className={`text-xs font-semibold text-center leading-tight ${
-                  isActive ? 'text-blue-700' : isDone ? 'text-emerald-700' : 'text-slate-400'
-                }`}
+                className={[
+                  'text-center text-[10px] font-semibold leading-tight sm:text-xs',
+                  isActive ? 'text-trust-700' : isDone ? 'text-trust-700' : 'text-slate-500',
+                ].join(' ')}
               >
                 {step.label}
               </span>
@@ -89,20 +106,25 @@ const BookingDetailPage = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
-  
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [momoNumber, setMomoNumber] = useState('');
-  
+
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completionPrice, setCompletionPrice] = useState('');
-  
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  
+
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [error, setError] = useState('');
+  // Inline feedback state (replaces alert() calls)
+  const [feedback, setFeedback] = useState(null); // { tone, text } shown near actions
+  const [chatError, setChatError] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [paymentError, setPaymentError] = useState('');
 
   const fetchBooking = useCallback(async () => {
     try {
@@ -162,8 +184,9 @@ const BookingDetailPage = () => {
     try {
       await bookingAPI.sendMessage(id, newMessage);
       setNewMessage('');
-    } catch (err) {
-      alert('Failed to send message');
+      setChatError('');
+    } catch {
+      setChatError('Failed to send message. Please try again.');
     }
   };
 
@@ -172,8 +195,9 @@ const BookingDetailPage = () => {
       setShowCompleteModal(true); // Using the same modal state for price agreement
       return;
     }
-    
+
     setActionLoading(action);
+    setFeedback(null);
     try {
       if (action === 'accept') await bookingAPI.updateStatus(id, 'ACCEPTED');
       if (action === 'agreePrice') {
@@ -189,8 +213,9 @@ const BookingDetailPage = () => {
         setShowCancelModal(false);
       }
       await fetchBooking();
+      setFeedback({ tone: 'success', text: 'Booking updated.' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed.');
+      setFeedback({ tone: 'error', text: err.response?.data?.message || 'Action failed.' });
     } finally {
       setActionLoading('');
     }
@@ -199,6 +224,7 @@ const BookingDetailPage = () => {
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     setActionLoading('review');
+    setReviewError('');
     try {
       await bookingAPI.createReview({
         bookingId: id,
@@ -207,8 +233,9 @@ const BookingDetailPage = () => {
       });
       setShowReviewModal(false);
       await fetchBooking(); // Reload booking to show review
+      setFeedback({ tone: 'success', text: 'Thanks! Your review has been published.' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to submit review.');
+      setReviewError(err.response?.data?.message || 'Failed to submit review.');
     } finally {
       setActionLoading('');
     }
@@ -217,11 +244,8 @@ const BookingDetailPage = () => {
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     setActionLoading('payment');
+    setPaymentError('');
     try {
-      // Need to import paymentAPI at top of file, wait I didn't import it in this replace block!
-      // Wait, let me just add it. Wait, I can't import inside the function. I'll need to update imports.
-      // But let me use the fetch call directly or assume we import paymentAPI.
-      alert('Processing payment...');
       const res = await paymentAPI.createPayment({
         bookingId: id,
         amount: booking.price,
@@ -229,17 +253,17 @@ const BookingDetailPage = () => {
       });
       const data = res.data;
       if (!data.success) throw new Error(data.message);
-      
-      alert(data.message);
+
       setShowPaymentModal(false);
-      
+      setFeedback({ tone: 'success', text: data.message || 'Payment initiated. Authorize the prompt on your phone.' });
+
       // Since mock payment takes 3s to update DB, let's poll or just reload after 3.5s
       setTimeout(() => {
         fetchBooking();
       }, 3500);
 
     } catch (err) {
-      alert(err.message || 'Failed to initiate payment.');
+      setPaymentError(err.message || 'Failed to initiate payment.');
     } finally {
       setActionLoading('');
     }
@@ -252,12 +276,11 @@ const BookingDetailPage = () => {
       setActionLoading('dispute');
       const res = await disputeAPI.createDispute({ bookingId: id, reason: disputeReason, description: disputeDescription });
       if (res.data.success) {
-        alert('Dispute submitted successfully');
         setShowDisputeModal(false);
         navigate(`/disputes/${res.data.data.id}`);
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to file dispute');
+      setFeedback({ tone: 'error', text: err.response?.data?.message || 'Failed to file dispute' });
     } finally {
       setActionLoading('');
     }
@@ -265,20 +288,23 @@ const BookingDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-slate-400 text-sm animate-pulse">Loading booking details...</div>
+      <div className="flex min-h-screen items-center justify-center bg-navy-50">
+        <Spinner size="lg" className="text-trust-600" />
       </div>
     );
   }
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
-        <span className="text-4xl">😕</span>
-        <p className="text-slate-600">{error || 'Booking not found'}</p>
-        <Link to="/my-bookings" className="text-blue-600 hover:underline text-sm font-semibold">
-          ← Back to My Bookings
-        </Link>
+      <div className="flex min-h-screen items-center justify-center bg-navy-50 px-4">
+        <div className="w-full max-w-md">
+          <EmptyState
+            icon={XCircle}
+            title="Booking unavailable"
+            body={error || 'Booking not found'}
+            action={{ label: 'Back to My Bookings', to: '/my-bookings' }}
+          />
+        </div>
       </div>
     );
   }
@@ -295,54 +321,56 @@ const BookingDetailPage = () => {
   const canReview = isCustomer && (s === 'COMPLETED' || s === 'PAID') && !booking.review;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+    <div className="min-h-screen bg-navy-50 py-10">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-slate-500 mb-6">
-          <Link to="/my-bookings" className="hover:text-blue-600 font-semibold">My Bookings</Link>
-          <span>/</span>
-          <span className="text-slate-700">Booking #{booking.id}</span>
-        </div>
+        <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs text-slate-500">
+          <Link to="/my-bookings" className="font-semibold transition hover:text-trust-600">My Bookings</Link>
+          <span aria-hidden="true">/</span>
+          <span className="font-medium text-slate-700" aria-current="page">Booking #{booking.id}</span>
+        </nav>
+
+        {/* Page-level feedback (replaces alert()) */}
+        {feedback && (
+          <Alert tone={feedback.tone} className="mb-6" onClose={() => setFeedback(null)}>
+            {feedback.text}
+          </Alert>
+        )}
 
         {/* Status Timeline Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-start mb-6">
+        <Card className="mb-6">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-black text-slate-900">{booking.service?.name}</h1>
-              <p className="text-sm text-slate-500 mt-0.5">Booking #{booking.id}</p>
+              <h1 className="text-2xl font-black tracking-tight text-navy-900">{booking.service?.name}</h1>
+              <p className="mt-0.5 text-sm text-slate-500">Booking #{booking.id}</p>
             </div>
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
-              s === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
-              s === 'CANCELLED' ? 'bg-red-100 text-red-700 border-red-300' :
-              s === 'IN_PROGRESS' ? 'bg-orange-100 text-orange-700 border-orange-300' :
-              s === 'ACCEPTED' ? 'bg-blue-100 text-blue-700 border-blue-300' :
-              'bg-amber-100 text-amber-700 border-amber-300'
-            }`}>
-              {s.replace('_', ' ')}
-            </span>
+            <StatusBadge status={s} domain="booking" size="lg" />
           </div>
           <StatusTimeline status={s} />
-        </div>
+        </Card>
 
         {/* Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
 
           {/* Booking Info */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">📋 Booking Details</h2>
+          <Card>
+            <h2 className="mb-4 flex items-center gap-2 font-bold tracking-tight text-navy-900">
+              <ClipboardText aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+              Booking Details
+            </h2>
             <div className="space-y-3 text-sm">
               <div>
-                <span className="text-xs text-slate-400 uppercase font-semibold block">Service</span>
-                <span className="font-semibold text-slate-800">{booking.service?.name}</span>
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Service</span>
+                <span className="font-semibold text-navy-900">{booking.service?.name}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-400 uppercase font-semibold block">Description</span>
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Description</span>
                 <span className="text-slate-600">{booking.description || '—'}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-400 uppercase font-semibold block">Scheduled Date</span>
-                <span className="font-semibold text-slate-800">
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Scheduled Date</span>
+                <span className="font-semibold text-navy-900">
                   {booking.scheduledDate
                     ? new Date(booking.scheduledDate).toLocaleString('en-GH', {
                         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -353,8 +381,8 @@ const BookingDetailPage = () => {
               </div>
               {booking.scheduledEndDate && (
                 <div>
-                  <span className="text-xs text-slate-400 uppercase font-semibold block">End Date</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">End Date</span>
+                  <span className="font-semibold text-navy-900">
                     {new Date(booking.scheduledEndDate).toLocaleString('en-GH', {
                       day: 'numeric', month: 'long', year: 'numeric',
                     })}
@@ -363,12 +391,14 @@ const BookingDetailPage = () => {
               )}
               {booking.price && (
                 <div>
-                  <span className="text-xs text-slate-400 uppercase font-semibold block">Agreed Rate</span>
-                  <span className="text-xl font-black text-emerald-600">GH₵ {booking.price.toFixed(2)}</span>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Agreed Rate</span>
+                  <span className="text-xl font-black tabular-nums text-trust-600">
+                    GH₵ {booking.price.toFixed(2)}
+                  </span>
                 </div>
               )}
               <div>
-                <span className="text-xs text-slate-400 uppercase font-semibold block">Booked On</span>
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">Booked On</span>
                 <span className="text-slate-600">
                   {new Date(booking.createdAt).toLocaleDateString('en-GH', {
                     day: 'numeric', month: 'long', year: 'numeric',
@@ -376,82 +406,93 @@ const BookingDetailPage = () => {
                 </span>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* People Info */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">👥 Parties</h2>
+          <Card>
+            <h2 className="mb-4 flex items-center gap-2 font-bold tracking-tight text-navy-900">
+              <Users aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+              Parties
+            </h2>
             <div className="space-y-4 text-sm">
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                <span className="text-xs text-blue-500 font-bold uppercase block mb-1">Customer</span>
-                <p className="font-bold text-slate-800">
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-blue-700">Customer</span>
+                <p className="font-bold text-navy-900">
                   {booking.customer?.firstName} {booking.customer?.lastName}
                 </p>
-                <p className="text-xs text-slate-500">{booking.customer?.email}</p>
+                <p className="text-xs text-slate-600">{booking.customer?.email}</p>
                 {booking.customer?.phoneNumber && (
-                  <p className="text-xs text-slate-500">{booking.customer?.phoneNumber}</p>
+                  <p className="text-xs text-slate-600">{booking.customer?.phoneNumber}</p>
                 )}
               </div>
 
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <span className="text-xs text-emerald-600 font-bold uppercase block mb-1">Service Provider</span>
-                <p className="font-bold text-slate-800">
+              <div className="rounded-xl border border-trust-100 bg-trust-50 p-3">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-trust-700">Service Provider</span>
+                <p className="font-bold text-navy-900">
                   {booking.provider?.user?.firstName} {booking.provider?.user?.lastName}
                 </p>
                 {booking.provider?.businessName && (
                   <p className="text-xs text-slate-600">{booking.provider.businessName}</p>
                 )}
-                <p className="text-xs text-slate-500">{booking.provider?.user?.email}</p>
+                <p className="text-xs text-slate-600">{booking.provider?.user?.email}</p>
                 {booking.provider?.user?.phoneNumber && (
-                  <p className="text-xs text-slate-500">{booking.provider?.user?.phoneNumber}</p>
+                  <p className="text-xs text-slate-600">{booking.provider?.user?.phoneNumber}</p>
                 )}
               </div>
 
               {booking.location && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-500 font-bold uppercase block mb-1">📍 Location</span>
-                  <p className="font-semibold text-slate-800">{booking.location.name}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <span className="mb-1 flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <MapPin aria-hidden="true" weight="fill" size={12} /> Location
+                  </span>
+                  <p className="font-semibold text-navy-900">{booking.location.name}</p>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Review Card (if exists) */}
         {booking.review && (
-          <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6 mb-6">
-            <h2 className="font-bold text-amber-800 mb-3 flex items-center gap-2">⭐ Customer Review</h2>
-            <div className="flex items-center gap-2 mb-2">
-              {[1,2,3,4,5].map(n => (
-                <span key={n} className={n <= booking.review.rating ? 'text-amber-400 text-lg' : 'text-slate-300 text-lg'}>★</span>
-              ))}
-              <span className="text-sm font-bold text-amber-700">{booking.review.rating}/5</span>
+          <div className="mb-6 rounded-2xl border border-gold-200 bg-gold-50 p-6">
+            <h2 className="mb-3 flex items-center gap-2 font-bold tracking-tight text-gold-800">
+              <Star aria-hidden="true" weight="fill" size={18} className="text-gold-500" />
+              Customer Review
+            </h2>
+            <div className="mb-2 flex items-center gap-2">
+              <Rating value={booking.review.rating} size={16} showValue />
+              <span className="sr-only-x">{booking.review.rating} out of 5</span>
             </div>
             {booking.review.comment && (
-              <p className="text-sm text-slate-700 italic">"{booking.review.comment}"</p>
+              <p className="text-sm italic text-slate-700">&ldquo;{booking.review.comment}&rdquo;</p>
             )}
           </div>
         )}
 
         {/* Price Negotiation Chat */}
         {(s === 'ACCEPTED' || s === 'PRICE_AGREED') && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">💬 Negotiation & Chat</h2>
-            
-            <div className="bg-slate-50 border border-slate-200 rounded-xl flex flex-col h-80 mb-4">
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <Card className="mb-6">
+            <h2 className="mb-4 flex items-center gap-2 font-bold tracking-tight text-navy-900">
+              <Chats aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+              Negotiation &amp; Chat
+            </h2>
+
+            <div className="mb-4 flex h-80 flex-col rounded-xl border border-slate-200 bg-slate-50">
+              <div className="flex-1 space-y-4 overflow-y-auto p-4">
                 {messages.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center mt-20">No messages yet. Start negotiating!</p>
+                  <p className="mt-20 text-center text-sm text-slate-500">No messages yet. Start negotiating!</p>
                 ) : (
                   messages.map(msg => {
                     const isMine = msg.senderId === user.id;
                     return (
                       <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
-                          isMine ? 'bg-emerald-600 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'
+                        <div className={`max-w-[80%] rounded-2xl p-3 text-sm ${
+                          isMine
+                            ? 'rounded-br-sm bg-trust-600 text-white'
+                            : 'rounded-bl-sm border border-slate-200 bg-white text-navy-900'
                         }`}>
-                          <p className="font-semibold text-[10px] mb-1 opacity-70">
-                            {isMine ? 'You' : msg.sender?.firstName || 'User'} • {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          <p className={`mb-1 text-[10px] font-semibold ${isMine ? 'text-trust-100' : 'text-slate-500'}`}>
+                            {isMine ? 'You' : msg.sender?.firstName || 'User'} · {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                         </div>
@@ -460,366 +501,335 @@ const BookingDetailPage = () => {
                   })
                 )}
               </div>
-              <div className="p-3 bg-white border-t border-slate-200 rounded-b-xl">
+              <div className="rounded-b-xl border-t border-slate-200 bg-white p-3">
+                {chatError && (
+                  <Alert tone="error" className="mb-2" onClose={() => setChatError('')}>
+                    {chatError}
+                  </Alert>
+                )}
                 <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <label htmlFor="chat-message" className="sr-only-x">Type a message</label>
                   <input
+                    id="chat-message"
                     type="text"
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-navy-900 placeholder:text-slate-400 transition focus:border-trust-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-trust-500/40"
                   />
-                  <button
-                    type="submit"
-                    disabled={!newMessage.trim()}
-                    className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl text-sm hover:bg-emerald-700 transition disabled:opacity-50"
-                  >
-                    Send
-                  </button>
+                  <Button type="submit" size="sm" disabled={!newMessage.trim()} aria-label="Send message">
+                    Send <PaperPlaneRight aria-hidden="true" weight="fill" size={14} />
+                  </Button>
                 </form>
               </div>
             </div>
-            
+
             {s === 'ACCEPTED' && isProvider && (
-              <p className="text-xs text-amber-600 font-semibold mt-2">
-                Once you and the customer agree on a price, click "Set Agreed Price" below.
+              <p className="mt-2 text-xs font-semibold text-gold-700">
+                Once you and the customer agree on a price, click &ldquo;Set Agreed Price&rdquo; below.
               </p>
             )}
             {s === 'PRICE_AGREED' && (
-              <p className="text-xs text-emerald-600 font-semibold mt-2">
+              <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-trust-700">
+                <Handshake aria-hidden="true" weight="fill" size={13} />
                 Price has been agreed upon! Provider can now start the job.
               </p>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Action Buttons */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="font-bold text-slate-800 mb-4">Actions</h2>
+        <Card>
+          <h2 className="mb-4 flex items-center gap-2 font-bold tracking-tight text-navy-900">
+            <FlagCheckered aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+            Actions
+          </h2>
           <div className="flex flex-wrap gap-3">
 
             {/* Provider actions */}
             {canAccept && (
-              <button
-                onClick={() => handleAction('accept')}
-                disabled={!!actionLoading}
-                className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
-              >
-                {actionLoading === 'accept' ? 'Accepting...' : '✅ Accept Job'}
-              </button>
+              <Button onClick={() => handleAction('accept')} loading={actionLoading === 'accept'} disabled={!!actionLoading}>
+                <CheckCircle aria-hidden="true" weight="bold" size={15} /> Accept Job
+              </Button>
             )}
             {canSetPrice && (
-              <button
-                onClick={() => handleAction('agreePrice')}
-                disabled={!!actionLoading}
-                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
-              >
-                {actionLoading === 'agreePrice' ? 'Setting...' : '💰 Set Agreed Price'}
-              </button>
+              <Button onClick={() => handleAction('agreePrice')} loading={actionLoading === 'agreePrice'} disabled={!!actionLoading}>
+                <CurrencyCircleDollar aria-hidden="true" weight="bold" size={15} /> Set Agreed Price
+              </Button>
             )}
             {canStart && (
-              <button
-                onClick={() => handleAction('start')}
-                disabled={!!actionLoading}
-                className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                {actionLoading === 'start' ? 'Starting...' : '🔧 Start Job'}
-              </button>
+              <Button onClick={() => handleAction('start')} loading={actionLoading === 'start'} disabled={!!actionLoading}>
+                <Wrench aria-hidden="true" weight="bold" size={15} /> Start Job
+              </Button>
             )}
             {canComplete && (
-              <button
-                onClick={() => handleAction('complete')}
-                disabled={!!actionLoading}
-                className="px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition disabled:opacity-50"
-              >
-                {actionLoading === 'complete' ? 'Completing...' : '🏁 Mark as Complete'}
-              </button>
+              <Button variant="success" onClick={() => handleAction('complete')} loading={actionLoading === 'complete'} disabled={!!actionLoading} className="!bg-trust-600 !text-white !border-trust-600 hover:!bg-trust-700">
+                <FlagCheckered aria-hidden="true" weight="bold" size={15} /> Mark as Complete
+              </Button>
             )}
 
             {/* Customer actions */}
             {canPay && (
-              <button
-                onClick={() => setShowPaymentModal(true)}
-                className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition"
-              >
-                💳 Pay Now via Mobile Money
-              </button>
+              <Button onClick={() => setShowPaymentModal(true)}>
+                <CreditCard aria-hidden="true" weight="bold" size={15} /> Pay Now via Mobile Money
+              </Button>
             )}
             {canReview && (
-              <button
-                onClick={() => setShowReviewModal(true)}
-                className="px-6 py-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition"
-              >
-                ⭐ Leave a Review
-              </button>
+              <Button variant="secondary" onClick={() => setShowReviewModal(true)}>
+                <Star aria-hidden="true" weight="fill" size={14} className="text-gold-400" /> Leave a Review
+              </Button>
             )}
             {canCancel && (
-              <button
-                onClick={() => setShowCancelModal(true)}
-                className="px-6 py-2.5 bg-red-100 text-red-700 border border-red-300 font-bold rounded-xl hover:bg-red-200 transition"
-              >
-                ❌ Cancel Booking
-              </button>
+              <Button variant="danger" onClick={() => setShowCancelModal(true)}>
+                <XCircle aria-hidden="true" weight="bold" size={15} /> Cancel Booking
+              </Button>
             )}
-            
+
             {s !== 'CANCELLED' && s !== 'REQUESTED' && s !== 'REJECTED' && (isCustomer || isProvider) && (
-              <button
-                onClick={() => setShowDisputeModal(true)}
-                className="px-6 py-2.5 bg-orange-100 text-orange-800 border border-orange-300 font-bold rounded-xl hover:bg-orange-200 transition"
-              >
-                ⚖️ File a Dispute
-              </button>
+              <Button variant="secondary" onClick={() => setShowDisputeModal(true)} className="!border-gold-300 !bg-gold-50 !text-gold-800 hover:!bg-gold-100">
+                <Scales aria-hidden="true" weight="bold" size={15} /> File a Dispute
+              </Button>
             )}
 
             {/* Always: Back */}
-            <Link
-              to="/my-bookings"
-              className="px-6 py-2.5 border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition"
-            >
-              ← Back to List
-            </Link>
+            <Button variant="secondary" to="/my-bookings">
+              <ArrowLeft aria-hidden="true" weight="bold" size={14} /> Back to List
+            </Button>
           </div>
 
           {s === 'COMPLETED' && !booking.review && isCustomer && (
-            <p className="text-xs text-amber-600 mt-3 font-semibold">
-              ⭐ This job is complete! Your review helps other customers find great providers.
+            <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-gold-700">
+              <Star aria-hidden="true" weight="fill" size={13} />
+              This job is complete! Your review helps other customers find great providers.
             </p>
           )}
           {s === 'CANCELLED' && (
-            <p className="text-xs text-red-500 mt-3">This booking has been cancelled.</p>
+            <p className="mt-3 text-xs text-red-600">This booking has been cancelled.</p>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Cancel Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Cancel This Booking?</h3>
-            <p className="text-sm text-slate-600 mb-6">
-              Are you sure you want to cancel your <strong>{booking.service?.name}</strong> booking?
-              This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
-              >
-                Keep Booking
-              </button>
-              <button
-                onClick={() => handleAction('cancel')}
-                disabled={!!actionLoading}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50"
-              >
-                {actionLoading === 'cancel' ? 'Cancelling...' : 'Yes, Cancel'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title="Cancel This Booking?"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCancelModal(false)} disabled={!!actionLoading} autoFocus>
+              Keep Booking
+            </Button>
+            <Button
+              onClick={() => handleAction('cancel')}
+              loading={actionLoading === 'cancel'}
+              disabled={!!actionLoading}
+              className="!border-red-600 !bg-red-600 !text-white hover:!bg-red-700"
+            >
+              {actionLoading === 'cancel' ? 'Cancelling…' : 'Yes, Cancel Booking'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-relaxed text-slate-600">
+          Are you sure you want to cancel your <strong>{booking.service?.name}</strong> booking?
+          This action cannot be undone.
+        </p>
+      </Modal>
 
       {/* Review Modal */}
-      {showReviewModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Leave a Review</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              How was your experience with <strong>{booking.provider?.user?.firstName}</strong>?
-            </p>
-            <form onSubmit={handleReviewSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Rating</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <button
-                      type="button"
-                      key={star}
-                      onClick={() => setReviewRating(star)}
-                      className={`text-2xl ${reviewRating >= star ? 'text-amber-400' : 'text-slate-300'}`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Comment</label>
-                <textarea
-                  required
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
-                  rows="4"
-                  placeholder="Tell others about the service you received..."
-                ></textarea>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowReviewModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'review'}
-                  className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition disabled:opacity-50"
-                >
-                  {actionLoading === 'review' ? 'Submitting...' : 'Submit Review'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        title="Leave a Review"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setShowReviewModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="gt-review-form"
+              loading={actionLoading === 'review'}
+              disabled={actionLoading === 'review'}
+            >
+              {actionLoading === 'review' ? 'Submitting…' : 'Submit Review'}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          How was your experience with <strong>{booking.provider?.user?.firstName}</strong>?
+        </p>
+        <form id="gt-review-form" onSubmit={handleReviewSubmit}>
+          <div className="mb-4">
+            <span className="mb-2 block text-sm font-bold text-navy-900" id="gt-rating-label">Rating</span>
+            <Rating value={reviewRating} onChange={setReviewRating} size={20} label="Your rating" />
           </div>
-        </div>
-      )}
+          <Field
+            as="textarea"
+            label="Comment"
+            name="reviewComment"
+            rows={4}
+            required
+            placeholder="Tell others about the service you received..."
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+          />
+          {reviewError && (
+            <Alert tone="error" className="mt-3" onClose={() => setReviewError('')}>
+              {reviewError}
+            </Alert>
+          )}
+        </form>
+      </Modal>
 
       {/* Complete Job Modal / Agree Price Modal */}
-      {showCompleteModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">💰 Set Agreed Price</h3>
-            <p className="text-sm text-slate-600 mb-6">
-              Enter the final negotiated price. Once set, you can start the job!
-            </p>
-            <form onSubmit={(e) => { e.preventDefault(); handleAction('agreePrice', completionPrice); }}>
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Agreed Price (GH₵)</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  step="0.01"
-                  placeholder="e.g. 150.00"
-                  value={completionPrice}
-                  onChange={(e) => setCompletionPrice(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCompleteModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'agreePrice'}
-                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition disabled:opacity-50"
-                >
-                  {actionLoading === 'agreePrice' ? 'Saving...' : 'Set Price GH₵ ' + (completionPrice || '0')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showCompleteModal}
+        onClose={() => setShowCompleteModal(false)}
+        title="Set Agreed Price"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setShowCompleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="gt-price-form"
+              loading={actionLoading === 'agreePrice'}
+              disabled={actionLoading === 'agreePrice'}
+            >
+              Set Price GH₵ {completionPrice || '0'}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          Enter the final negotiated price. Once set, you can start the job!
+        </p>
+        <form id="gt-price-form" onSubmit={(e) => { e.preventDefault(); handleAction('agreePrice', completionPrice); }}>
+          <Field
+            label="Agreed Price (GH₵)"
+            name="completionPrice"
+            type="number"
+            required
+            min="1"
+            step="0.01"
+            placeholder="e.g. 150.00"
+            value={completionPrice}
+            onChange={(e) => setCompletionPrice(e.target.value)}
+          />
+        </form>
+      </Modal>
 
       {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Secure Mobile Money Payment</h3>
-            <p className="text-sm text-slate-600 mb-6">
-              You are paying <strong>GH₵ {booking.price?.toFixed(2) || '0.00'}</strong> to <strong>{booking.provider?.user?.firstName}</strong> for the <strong>{booking.service?.name}</strong> service.
-            </p>
-            <form onSubmit={handlePaymentSubmit}>
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Mobile Money Number</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="e.g. 024XXXXXXX or 055XXXXXXX"
-                  value={momoNumber}
-                  onChange={(e) => setMomoNumber(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-2">
-                  A payment prompt will be sent to this number. Please authorize the transaction on your phone.
-                </p>
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'payment'}
-                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50"
-                >
-                  {actionLoading === 'payment' ? 'Processing...' : 'Pay GH₵ ' + (booking.price?.toFixed(2) || '0.00')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        title="Secure Mobile Money Payment"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setShowPaymentModal(false)} disabled={actionLoading === 'payment'}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="gt-payment-form"
+              loading={actionLoading === 'payment'}
+              disabled={actionLoading === 'payment'}
+            >
+              Pay GH₵ {booking.price?.toFixed(2) || '0.00'}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm leading-relaxed text-slate-600">
+          You are paying <strong className="tabular-nums">GH₵ {booking.price?.toFixed(2) || '0.00'}</strong> to{' '}
+          <strong>{booking.provider?.user?.firstName}</strong> for the <strong>{booking.service?.name}</strong> service.
+        </p>
+        <form id="gt-payment-form" onSubmit={handlePaymentSubmit}>
+          <Field
+            label="Mobile Money Number"
+            name="momoNumber"
+            type="tel"
+            required
+            autoComplete="tel"
+            placeholder="e.g. 024XXXXXXX or 055XXXXXXX"
+            value={momoNumber}
+            onChange={(e) => setMomoNumber(e.target.value)}
+            hint="A payment prompt will be sent to this number. Please authorize the transaction on your phone."
+          />
+          {actionLoading === 'payment' && (
+            <Alert tone="info" className="mt-3">
+              Processing your payment — approve the MoMo prompt on your phone.
+            </Alert>
+          )}
+          {paymentError && (
+            <Alert tone="error" className="mt-3" onClose={() => setPaymentError('')}>
+              {paymentError}
+            </Alert>
+          )}
+        </form>
+      </Modal>
 
       {/* Dispute Modal */}
-      {showDisputeModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-slate-900 mb-2">File a Dispute</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              Having issues with this booking? Describe the problem below. Our admin team will investigate.
-            </p>
-            <form onSubmit={handleDisputeSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Dispute *</label>
-                <select
-                  required
-                  value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">Select a reason...</option>
-                  <option value="No Show">No Show</option>
-                  <option value="Poor Quality">Poor Quality of Work</option>
-                  <option value="Unprofessional Behavior">Unprofessional Behavior</option>
-                  <option value="Payment Issue">Payment Issue</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Additional Details</label>
-                <textarea
-                  value={disputeDescription}
-                  onChange={(e) => setDisputeDescription(e.target.value)}
-                  rows={4}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                  placeholder="Please provide any additional context..."
-                />
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowDisputeModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'dispute'}
-                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-bold hover:bg-orange-700 transition disabled:opacity-50"
-                >
-                  {actionLoading === 'dispute' ? 'Submitting...' : 'Submit Dispute'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showDisputeModal}
+        onClose={() => setShowDisputeModal(false)}
+        title="File a Dispute"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setShowDisputeModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="gt-dispute-form"
+              loading={actionLoading === 'dispute'}
+              disabled={actionLoading === 'dispute'}
+              className="!border-gold-600 !bg-gold-600 !text-white hover:!bg-gold-700"
+            >
+              {actionLoading === 'dispute' ? 'Submitting…' : 'Submit Dispute'}
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          Having issues with this booking? Describe the problem below. Our admin team will investigate.
+        </p>
+        <form id="gt-dispute-form" onSubmit={handleDisputeSubmit}>
+          <Field
+            as="select"
+            label="Reason for Dispute *"
+            required
+            value={disputeReason}
+            onChange={(e) => setDisputeReason(e.target.value)}
+          >
+            <option value="">Select a reason...</option>
+            <option value="No Show">No Show</option>
+            <option value="Poor Quality">Poor Quality of Work</option>
+            <option value="Unprofessional Behavior">Unprofessional Behavior</option>
+            <option value="Payment Issue">Payment Issue</option>
+            <option value="Other">Other</option>
+          </Field>
+          <div className="mt-4">
+            <Field
+              as="textarea"
+              label="Additional Details"
+              name="disputeDescription"
+              rows={4}
+              placeholder="Please provide any additional context..."
+              value={disputeDescription}
+              onChange={(e) => setDisputeDescription(e.target.value)}
+            />
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
@@ -32,10 +32,11 @@ function App() {
       <AuthProvider>
         <SocketProvider>
           <TourProvider>
-            <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+            <div className="min-h-screen flex flex-col bg-navy-50 text-navy-900">
+              <a href="#main-content" className="skip-link">Skip to main content</a>
               <TourComponent />
             <Navbar />
-            <main className="flex-grow">
+            <main id="main-content" className="flex-grow">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />

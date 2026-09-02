@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ShieldCheck, User, HardHat, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../context/TourContext';
 import { serviceAPI } from '../services/api';
+import { Button, Card, Field, Alert } from '../components/ui';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -25,6 +27,7 @@ const Register = () => {
   const [services, setServices] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { register } = useAuth();
   const { startTour } = useTour();
   const navigate = useNavigate();
@@ -61,6 +64,13 @@ const Register = () => {
     setServices([]);
   };
 
+  // Arrow-key navigation for the role radiogroup
+  const handleRoleKeyDown = (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    handleRoleToggle(formData.role === 'CUSTOMER' ? 'PROVIDER' : 'CUSTOMER');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -80,7 +90,8 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const { confirmPassword, ...userData } = formData;
+      const userData = { ...formData };
+      delete userData.confirmPassword; // never sent to the API
       const result = await register(userData);
       if (result.success) {
         navigate('/dashboard');
@@ -99,44 +110,60 @@ const Register = () => {
 
   const isProvider = formData.role === 'PROVIDER';
 
+  const ROLE_OPTIONS = [
+    { value: 'CUSTOMER', label: 'I Need a Service', icon: User },
+    { value: 'PROVIDER', label: 'I Provide Service', icon: HardHat },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className={`w-full ${isProvider ? 'max-w-2xl' : 'max-w-md'} transition-all duration-300`}>
-        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white font-bold text-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-600/30">
-              🛡️
+    <div className="flex min-h-screen items-center justify-center bg-navy-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className={`w-full transition-all duration-300 ${isProvider ? 'max-w-2xl' : 'max-w-md'}`}>
+        <Card padding="p-8" className="rounded-3xl">
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-trust-500 to-trust-800 text-white shadow-cta">
+              <ShieldCheck weight="duotone" size={30} aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-              Create Your GhanaTrust Account
-            </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Join Ghana's leading verified service marketplace
-            </p>
+            <h1 className="text-2xl font-black tracking-tight text-navy-900">Create Your GhanaTrust Account</h1>
+            <p className="mt-1 text-xs text-slate-500">Join Ghana's leading verified service marketplace</p>
           </div>
 
           {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl font-semibold mb-6">
+            <Alert tone="error" onClose={() => setError('')} className="mb-6">
               {error}
-            </div>
+            </Alert>
           )}
 
-          {/* Role Toggle */}
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl mb-6 border border-slate-200">
-            <button
-              type="button"
-              onClick={() => handleRoleToggle('CUSTOMER')}
-              className={`py-2.5 rounded-xl text-xs font-bold transition ${!isProvider ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              🙋‍♂️ I Need a Service
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleToggle('PROVIDER')}
-              className={`py-2.5 rounded-xl text-xs font-bold transition ${isProvider ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              🔧 I provide sevice
-            </button>
+          {/* Role Toggle — radiogroup, keyboard operable */}
+          <div
+            role="radiogroup"
+            aria-label="Account type"
+            onKeyDown={handleRoleKeyDown}
+            className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-100 p-1.5"
+          >
+            {ROLE_OPTIONS.map(({ value, label, icon: Icon }) => {
+              const selected = formData.role === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => handleRoleToggle(value)}
+                  className={[
+                    'flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition duration-150',
+                    selected
+                      ? value === 'PROVIDER'
+                        ? 'bg-trust-600 text-white shadow-cta'
+                        : 'bg-white text-navy-900 shadow-card'
+                      : 'text-slate-500 hover:text-slate-800',
+                  ].join(' ')}
+                >
+                  <Icon aria-hidden="true" weight="duotone" size={17} />
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -145,70 +172,56 @@ const Register = () => {
               {/* --- LEFT COLUMN: Basic Info --- */}
               <div className="space-y-4">
                 {isProvider && (
-                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">
+                  <p className="border-b border-slate-100 pb-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
                     Personal Information
                   </p>
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">FIRST NAME</label>
-                    <input
-                      type="text" name="firstName" required
-                      placeholder="Kwame"
-                      value={formData.firstName} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">LAST NAME</label>
-                    <input
-                      type="text" name="lastName" required
-                      placeholder="Mensah"
-                      value={formData.lastName} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">EMAIL ADDRESS</label>
-                  <input
-                    type="email" name="email" required
-                    placeholder="name@example.com"
-                    value={formData.email} onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <Field
+                    label="First Name" name="firstName" required size="sm"
+                    placeholder="Kwame"
+                    value={formData.firstName} onChange={handleChange}
+                  />
+                  <Field
+                    label="Last Name" name="lastName" required size="sm"
+                    placeholder="Mensah"
+                    value={formData.lastName} onChange={handleChange}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">GHANA PHONE NUMBER</label>
-                  <input
-                    type="tel" name="phoneNumber"
-                    placeholder="+233 24 123 4567"
-                    value={formData.phoneNumber} onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
+                <Field
+                  label="Email Address" type="email" name="email" autoComplete="email" required size="sm"
+                  placeholder="name@example.com"
+                  value={formData.email} onChange={handleChange}
+                />
+
+                <Field
+                  label="Ghana Phone Number" type="tel" name="phoneNumber" autoComplete="tel" size="sm"
+                  placeholder="+233 24 123 4567"
+                  value={formData.phoneNumber} onChange={handleChange}
+                />
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">PASSWORD</label>
-                    <input
-                      type="password" name="password" required
+                  <div className="relative">
+                    <Field
+                      label="Password" type={showPassword ? 'text' : 'password'} name="password"
+                      autoComplete="new-password" required size="sm"
                       placeholder="••••••••"
                       value={formData.password} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="pr-10"
                     />
+                    <PasswordToggle show={showPassword} onToggle={() => setShowPassword((v) => !v)} compact />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">CONFIRM</label>
-                    <input
-                      type="password" name="confirmPassword" required
+                  <div className="relative">
+                    <Field
+                      label="Confirm" type={showPassword ? 'text' : 'password'} name="confirmPassword"
+                      autoComplete="new-password" required size="sm"
                       placeholder="••••••••"
                       value={formData.confirmPassword} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="pr-10"
                     />
+                    <PasswordToggle show={showPassword} onToggle={() => setShowPassword((v) => !v)} compact />
                   </div>
                 </div>
               </div>
@@ -216,106 +229,125 @@ const Register = () => {
               {/* --- RIGHT COLUMN: Provider Profession Info --- */}
               {isProvider && (
                 <div className="space-y-4">
-                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">
+                  <p className="border-b border-slate-100 pb-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
                     Your Profession
                   </p>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">BUSINESS / TRADE NAME</label>
-                    <input
-                      type="text" name="businessName"
-                      placeholder="e.g. Mensah Electrical Works"
-                      value={formData.businessName} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  <Field
+                    label="Business / Trade Name" name="businessName" size="sm"
+                    placeholder="e.g. Mensah Electrical Works"
+                    value={formData.businessName} onChange={handleChange}
+                  />
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">SERVICE CATEGORY *</label>
-                    <select
-                      name="categoryId" required={isProvider}
-                      value={formData.categoryId} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                    >
-                      <option value="">Select a category...</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <Field
+                    as="select"
+                    label="Service Category"
+                    name="categoryId"
+                    required={isProvider}
+                    size="sm"
+                    value={formData.categoryId}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select a category...</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </Field>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">YOUR MAIN PROFESSION *</label>
-                    <select
-                      name="serviceId" required={isProvider}
-                      value={formData.serviceId} onChange={handleChange}
-                      disabled={!formData.categoryId}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">
-                        {formData.categoryId ? 'Select your profession...' : 'Select a category first'}
-                      </option>
-                      {services.map(svc => (
-                        <option key={svc.id} value={svc.id}>{svc.name}</option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-400 mt-1">You can add more services later from your dashboard.</p>
-                  </div>
+                  <Field
+                    as="select"
+                    label="Your Main Profession"
+                    name="serviceId"
+                    required={isProvider}
+                    size="sm"
+                    disabled={!formData.categoryId}
+                    value={formData.serviceId}
+                    onChange={handleChange}
+                    hint={formData.categoryId ? undefined : 'Select a category first'}
+                  >
+                    <option value="">
+                      {formData.categoryId ? 'Select your profession...' : 'Select a category first'}
+                    </option>
+                    {services.map((svc) => (
+                      <option key={svc.id} value={svc.id}>{svc.name}</option>
+                    ))}
+                  </Field>
+                  <p className="-mt-2 text-[10px] text-slate-500">You can add more services later from your dashboard.</p>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">YEARS OF EXPERIENCE</label>
-                    <select
-                      name="experienceYears"
-                      value={formData.experienceYears} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                    >
-                      <option value="">Select years...</option>
-                      {[1,2,3,4,5,6,7,8,9,10,15,20].map(y => (
-                        <option key={y} value={y}>{y}+ year{y > 1 ? 's' : ''}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <Field
+                    as="select"
+                    label="Years of Experience"
+                    name="experienceYears"
+                    size="sm"
+                    value={formData.experienceYears}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select years...</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20].map((y) => (
+                      <option key={y} value={y}>{y}+ year{y > 1 ? 's' : ''}</option>
+                    ))}
+                  </Field>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">BRIEF PROFILE DESCRIPTION</label>
-                    <textarea
-                      name="description"
-                      rows="3"
-                      placeholder="Describe your skills and the type of work you do..."
-                      value={formData.description} onChange={handleChange}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                    />
-                  </div>
+                  <Field
+                    as="textarea"
+                    label="Brief Profile Description"
+                    name="description"
+                    rows={3}
+                    size="sm"
+                    placeholder="Describe your skills and the type of work you do..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    className="resize-none"
+                  />
                 </div>
               )}
             </div>
 
             {/* Provider note */}
             {isProvider && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 font-medium">
-                🛡️ After registration, complete your <strong>Identity Verification</strong> from the Provider Dashboard to unlock Level 2 Verified status and appear higher in search results.
-              </div>
+              <Alert
+                tone="success"
+                title={
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShieldCheck aria-hidden="true" weight="fill" size={13} /> Level 2 Verification
+                  </span>
+                }
+              >
+                After registration, complete your <strong>Identity Verification</strong> from the Provider
+                Dashboard to unlock Level 2 Verified status and appear higher in search results.
+              </Alert>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 rounded-xl shadow-lg shadow-emerald-600/30 transition transform hover:-translate-y-0.5 disabled:opacity-50 mt-2"
-            >
-              {loading ? 'Creating Account...' : `Register as ${isProvider ? 'Artisan / Pro 🔧' : 'Customer 🛡️'}`}
-            </button>
+            <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+              {loading ? 'Creating Account…' : `Register as ${isProvider ? 'Artisan / Pro' : 'Customer'}`}
+            </Button>
           </form>
 
           <div className="mt-6 text-center text-xs text-slate-500">
             Already have an account?{' '}
-            <Link to="/login" className="font-bold text-emerald-600 hover:underline">
+            <Link to="/login" className="font-bold text-trust-600 hover:underline">
               Sign in
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
 };
+
+/* Compact eye toggle for the two-up password fields */
+const PasswordToggle = ({ show, onToggle, compact = false }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    aria-label={show ? 'Hide password' : 'Show password'}
+    className={[
+      'absolute flex cursor-pointer items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600',
+      compact ? 'right-2 top-[26px] h-7 w-7' : 'right-3 top-8 h-8 w-8',
+    ].join(' ')}
+  >
+    {show ? <EyeSlash aria-hidden="true" size={15} /> : <Eye aria-hidden="true" size={15} />}
+  </button>
+);
 
 export default Register;

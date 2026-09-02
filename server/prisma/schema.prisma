@@ -64,14 +64,12 @@ model User {
   messagesSent     Message[]      @relation("SentMessages")
   messagesReceived Message[]      @relation("ReceivedMessages")
   notifications    Notification[]
-
-  // Dispute relations
   raisedDisputes   Dispute[]         @relation("RaisedDisputes")
   resolvedDisputes Dispute[]         @relation("ResolvedDisputes")
   assignedDisputes Dispute[]         @relation("AssignedDisputes")
   uploadedEvidence DisputeEvidence[]
-
   verificationRequests VerificationRequest[]
+  auditLogs        AuditLog[]    @relation("AdminAuditLogs")
 
   @@map("users")
 }
@@ -365,8 +363,23 @@ model Notification {
   link      String?
   createdAt DateTime @default(now())
 
-  // Relations
   user User @relation(fields: [userId], references: [id])
 
   @@map("notifications")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  adminId     Int
+  action      String
+  targetType  String
+  targetId    Int
+  details     String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  admin User @relation("AdminAuditLogs", fields: [adminId], references: [id])
+
+  @@map("audit_logs")
 }

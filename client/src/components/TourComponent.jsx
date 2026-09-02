@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Joyride, STATUS } from 'react-joyride';
 import { useTour } from '../context/TourContext';
 import { useAuth } from '../context/AuthContext';

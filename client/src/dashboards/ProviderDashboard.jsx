@@ -1,50 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Wrench, ClipboardText, PlusCircle, CreditCard, ShieldCheck, User, CalendarCheck,
+  ArrowRight, CheckCircle, XCircle, Hourglass, IdentificationCard, Certificate,
+  MapPin, Phone, Trophy, Package, Gear,
+} from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import { providerAPI, bookingAPI, serviceAPI } from '../services/api';
+import {
+  Button, Card, StatusBadge, StatCard, TabBar, Field, Alert, ConfirmDialog,
+  Skeleton, EmptyState, TrustBadge, Rating,
+} from '../components/ui';
 
-// ─── Sub-components (Verification) ────────────────────────────────────────────
-const VerificationBadge = ({ label, verified, pendingStatus }) => {
-  const isPending = pendingStatus === 'PENDING';
-  if (verified) {
-    return (
-      <div className="p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-800">
-        <span className="text-xs font-bold block uppercase">{label}</span>
-        <span className="text-base font-bold mt-1 block">🟢 Verified</span>
-      </div>
-    );
-  }
-  if (isPending) {
-    return (
-      <div className="p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800">
-        <span className="text-xs font-bold block uppercase">{label}</span>
-        <span className="text-base font-bold mt-1 block">🟡 Under Review</span>
-      </div>
-    );
-  }
-  return (
-    <div className="p-4 rounded-xl border bg-gray-50 border-gray-200 text-gray-500">
-      <span className="text-xs font-bold block uppercase">{label}</span>
-      <span className="text-base font-bold mt-1 block">⚪ Not Submitted</span>
-    </div>
-  );
+// ─── Verification state tile ──────────────────────────────────────────────────
+const VerificationState = {
+  VERIFIED: {
+    cls: 'bg-trust-50 border-trust-200 text-trust-800',
+    icon: CheckCircle,
+    iconCls: 'text-trust-500',
+    label: 'Verified',
+  },
+  PENDING: {
+    cls: 'bg-amber-50 border-amber-200 text-amber-800',
+    icon: Hourglass,
+    iconCls: 'text-amber-500',
+    label: 'Under Review',
+  },
+  NONE: {
+    cls: 'bg-slate-50 border-slate-200 text-slate-500',
+    icon: XCircle,
+    iconCls: 'text-slate-400',
+    label: 'Not Submitted',
+  },
 };
 
-// ─── Booking Status Badge ──────────────────────────────────────────────────────
-const StatusBadge = ({ status }) => {
-  const cfg = {
-    REQUESTED:   { label: 'Requested',   cls: 'bg-amber-100 text-amber-800 border-amber-300',   icon: '🟡' },
-    ACCEPTED:    { label: 'Accepted',    cls: 'bg-blue-100 text-blue-800 border-blue-300',       icon: '🔵' },
-    IN_PROGRESS: { label: 'In Progress', cls: 'bg-orange-100 text-orange-800 border-orange-300', icon: '🔧' },
-    COMPLETED:   { label: 'Completed',   cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: '✅' },
-    CANCELLED:   { label: 'Cancelled',   cls: 'bg-red-100 text-red-800 border-red-300',          icon: '❌' },
-    SCHEDULED:   { label: 'Scheduled',   cls: 'bg-indigo-100 text-indigo-800 border-indigo-300', icon: '📅' },
-  }[status] || { label: status, cls: 'bg-slate-100 text-slate-700 border-slate-200', icon: '●' };
-
+const VerificationBadge = ({ label, verified, pendingStatus, icon: Icon }) => {
+  const state = verified ? VerificationState.VERIFIED : pendingStatus === 'PENDING' ? VerificationState.PENDING : VerificationState.NONE;
+  const StateIcon = state.icon;
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full border ${cfg.cls}`}>
-      {cfg.icon} {cfg.label}
-    </span>
+    <div className={`rounded-xl border p-4 ${state.cls}`}>
+      <span className="block text-xs font-bold uppercase tracking-wider">{label}</span>
+      <span className="mt-1 flex items-center gap-1.5 text-base font-bold">
+        <StateIcon aria-hidden="true" weight="fill" size={16} className={state.iconCls} />
+        {state.label}
+      </span>
+      <span className="sr-only-x">{label}: {state.label}</span>
+      {Icon && <Icon aria-hidden="true" weight="duotone" size={18} className="float-right -mt-6 opacity-40" />}
+    </div>
   );
 };
 
@@ -54,73 +56,65 @@ const JobCard = ({ booking, onAction, loadingId }) => {
   const s = booking.status;
 
   return (
-    <div className={`p-5 rounded-xl border bg-white shadow-sm transition ${
-      s === 'REQUESTED' ? 'border-amber-300 ring-1 ring-amber-100' : 'border-gray-100'
-    }`}>
-      <div className="flex justify-between items-start gap-3 flex-wrap">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h4 className="font-bold text-slate-900 truncate">{booking.service?.name}</h4>
-            <StatusBadge status={s} />
+    <div
+      className={`rounded-xl border bg-white shadow-card transition ${
+        s === 'REQUESTED' ? 'border-amber-300 ring-1 ring-amber-100' : 'border-slate-100'
+      }`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 p-5">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h3 className="truncate font-bold tracking-tight text-navy-900">{booking.service?.name}</h3>
+            <StatusBadge status={s} domain="booking" />
           </div>
-          <p className="text-xs text-slate-500 mb-2 line-clamp-1">
+          <p className="mb-2 line-clamp-1 text-xs text-slate-500">
             {booking.description || 'No description provided.'}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-            <span>
-              👤 <strong className="text-slate-700">
+            <span className="flex items-center gap-1">
+              <User aria-hidden="true" size={13} className="shrink-0 text-slate-400" />
+              <strong className="font-semibold text-slate-700">
                 {booking.customer?.firstName} {booking.customer?.lastName}
               </strong>
             </span>
-            <span>
-              🗓️{' '}
-              <strong className="text-slate-700">
+            <span className="flex items-center gap-1">
+              <CalendarCheck aria-hidden="true" size={13} className="shrink-0 text-slate-400" />
+              <strong className="font-semibold text-slate-700">
                 {booking.scheduledDate
                   ? new Date(booking.scheduledDate).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })
                   : 'TBD'}
               </strong>
             </span>
             {booking.price && (
-              <span className="text-emerald-700 font-bold">GH₵ {booking.price.toFixed(2)}</span>
+              <span className="font-bold tabular-nums text-trust-700">GH₵ {booking.price.toFixed(2)}</span>
             )}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col gap-2 items-end shrink-0">
+        <div className="flex shrink-0 flex-col items-end gap-2">
           <Link
             to={`/my-bookings/${booking.id}`}
-            className="text-xs text-blue-600 hover:underline font-semibold whitespace-nowrap"
+            className="group inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold text-trust-600 transition hover:text-trust-700"
           >
-            View Details →
+            View Details
+            <ArrowRight aria-hidden="true" weight="bold" size={11} className="transition group-hover:translate-x-0.5" />
           </Link>
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             {s === 'REQUESTED' && (
-              <button
-                onClick={() => onAction(booking.id, 'accept')}
-                disabled={isLoading}
-                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
-              >
-                {isLoading ? '...' : '✅ Accept'}
-              </button>
+              <Button size="sm" onClick={() => onAction(booking.id, 'accept')} loading={isLoading}>
+                <CheckCircle aria-hidden="true" weight="bold" size={13} /> Accept
+              </Button>
             )}
             {s === 'ACCEPTED' && (
-              <button
-                onClick={() => onAction(booking.id, 'start')}
-                disabled={isLoading}
-                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                {isLoading ? '...' : '🔧 Start Job'}
-              </button>
+              <Button size="sm" variant="secondary" onClick={() => onAction(booking.id, 'start')} loading={isLoading}>
+                <Wrench aria-hidden="true" weight="bold" size={13} /> Start Job
+              </Button>
             )}
             {s === 'IN_PROGRESS' && (
-              <button
-                onClick={() => onAction(booking.id, 'complete')}
-                disabled={isLoading}
-                className="px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
-              >
-                {isLoading ? '...' : '🏁 Complete'}
-              </button>
+              <Button size="sm" variant="success" onClick={() => onAction(booking.id, 'complete')} loading={isLoading}>
+                <Trophy aria-hidden="true" weight="bold" size={13} /> Complete
+              </Button>
             )}
           </div>
         </div>
@@ -154,6 +148,10 @@ const ProviderDashboard = () => {
   const [allServices, setAllServices] = useState([]);
   const [newServiceName, setNewServiceName] = useState('');
   const [serviceActionLoading, setServiceActionLoading] = useState(false);
+
+  // Feedback & confirms
+  const [feedback, setFeedback] = useState(null); // { tone, text }
+  const [removeTarget, setRemoveTarget] = useState(null); // provider-service id pending removal
 
   useEffect(() => {
     fetchMyVerifications();
@@ -202,23 +200,25 @@ const ProviderDashboard = () => {
       });
       await refreshUser();
       setNewServiceName('');
+      setFeedback({ tone: 'success', text: 'Service added to your profile.' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add service');
+      setFeedback({ tone: 'error', text: err.response?.data?.message || 'Failed to add service' });
     } finally {
       setServiceActionLoading(false);
     }
   };
 
   const handleRemoveService = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this service?')) return;
     setServiceActionLoading(true);
     try {
       await providerAPI.removeService(id);
       await refreshUser();
+      setFeedback({ tone: 'success', text: 'Service removed from your profile.' });
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove service');
+      setFeedback({ tone: 'error', text: err.response?.data?.message || 'Failed to remove service' });
     } finally {
       setServiceActionLoading(false);
+      setRemoveTarget(null);
     }
   };
 
@@ -230,7 +230,7 @@ const ProviderDashboard = () => {
       if (action === 'complete') await bookingAPI.completeBooking(bookingId);
       await fetchBookings();
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed. Please try again.');
+      setFeedback({ tone: 'error', text: err.response?.data?.message || 'Action failed. Please try again.' });
     } finally {
       setLoadingId(null);
     }
@@ -246,12 +246,12 @@ const ProviderDashboard = () => {
     setSubmitMessage(null);
     try {
       await providerAPI.submitVerification({ type, documentUrl, notes });
-      setSubmitMessage({ type: 'success', text: `✅ ${type === 'IDENTITY' ? 'Identity' : 'Skills'} verification submitted! Our team will review it shortly.` });
+      setSubmitMessage({ type: 'success', text: `${type === 'IDENTITY' ? 'Identity' : 'Skills'} verification submitted! Our team will review it shortly.` });
       fetchMyVerifications();
       if (type === 'IDENTITY') { setIdentityDoc(''); setIdentityNote(''); }
       if (type === 'SKILLS')   { setSkillsDoc('');   setSkillsNote(''); }
     } catch (err) {
-      setSubmitMessage({ type: 'error', text: `❌ Failed to submit. ${err.response?.data?.message || 'Try again.'}` });
+      setSubmitMessage({ type: 'error', text: `Failed to submit. ${err.response?.data?.message || 'Try again.'}` });
     } finally {
       setSubmitLoading('');
     }
@@ -267,146 +267,162 @@ const ProviderDashboard = () => {
 
   const tabBookings = activeTab === 'incoming' ? incoming : activeTab === 'active' ? active : completed;
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+  // Highest achieved trust level
+  const trustLevel =
+    provider?.skillsVerified && (provider?.jobsCompleted || 0) >= 20 && (provider?.completionRate || 0) >= 95
+      ? 3
+      : (provider?.skillsVerified || provider?.identityVerified) ? 2 : 1;
 
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8">
       {/* ── Provider Hero Banner ─────────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-800 rounded-2xl p-8 text-white shadow-xl mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-8 rounded-2xl bg-gradient-to-r from-trust-600 to-trust-900 p-8 text-white shadow-lift">
+        <div className="flex flex-col justify-between items-start gap-4 md:flex-row md:items-center">
           <div>
-            <span className="bg-emerald-500/30 text-emerald-100 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
               Service Provider Portal
             </span>
-            <h1 className="text-3xl font-bold mt-2">
-              Welcome, {user?.firstName}! 🔧
+            <h1 className="mt-2 flex items-center gap-3 text-3xl font-black tracking-tight">
+              Welcome, {user?.firstName}!
+              <Wrench aria-hidden="true" weight="duotone" size={26} className="text-trust-200" />
             </h1>
-            <p className="text-emerald-100 mt-1">
+            <p className="mt-1 text-trust-100">
               {provider?.businessName || 'Build your trusted reputation and expand your client base across Ghana.'}
             </p>
+            <div className="mt-3">
+              <TrustBadge level={trustLevel} size="lg" className="!border-white/20" />
+            </div>
           </div>
-          
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-5 py-3 text-center">
-            <span className="text-xs text-emerald-200 block uppercase tracking-wider">Trust Score</span>
-            <span className="text-2xl font-black text-amber-300">⭐ {provider?.trustScore || '0.0'} / 5.0</span>
-            <span className="text-[10px] text-emerald-100 block mt-1">{provider?.jobsCompleted || 0} Jobs Done</span>
+
+          <div className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-center backdrop-blur-md">
+            <span className="block text-xs uppercase tracking-wider text-trust-100">Trust Score</span>
+            <span className="mt-1 flex items-center justify-center gap-2">
+              <Rating value={provider?.trustScore || 0} size={13} />
+              <span className="text-2xl font-black tabular-nums text-white">
+                {(provider?.trustScore || 0).toFixed(1)}
+                <span className="text-sm font-bold text-trust-200"> / 5.0</span>
+              </span>
+            </span>
+            <span className="mt-1 block text-[10px] text-trust-100 tabular-nums">
+              {provider?.jobsCompleted || 0} Jobs Done
+            </span>
           </div>
         </div>
       </div>
 
       {/* ── Quick Links ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         <Link
           to="/my-bookings"
-          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-blue-300 transition group"
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-card transition hover:border-trust-300 hover:shadow-lift"
         >
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-            📋
-          </div>
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100">
+            <ClipboardText aria-hidden="true" weight="duotone" size={24} />
+          </span>
           <div>
-            <h3 className="font-bold text-slate-800">Job Requests</h3>
+            <h2 className="font-bold text-navy-900">Job Requests</h2>
             <p className="text-xs text-slate-500">Manage bookings</p>
           </div>
         </Link>
 
         <button
-          onClick={() => document.getElementById('add-service-section').scrollIntoView({ behavior: 'smooth' })}
-          className="bg-white text-left p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-emerald-300 transition group w-full"
+          type="button"
+          onClick={() => document.getElementById('add-service-section')?.scrollIntoView({ behavior: 'smooth' })}
+          className="group flex w-full cursor-pointer items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-card transition hover:border-trust-300 hover:shadow-lift"
         >
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-            ➕
-          </div>
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-trust-50 text-trust-600 transition duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100">
+            <PlusCircle aria-hidden="true" weight="duotone" size={24} />
+          </span>
           <div>
-            <h3 className="font-bold text-slate-800">Add Service</h3>
+            <h2 className="font-bold text-navy-900">Add Service</h2>
             <p className="text-xs text-slate-500">Expand offerings</p>
           </div>
         </button>
 
         <Link
           to="/payments"
-          className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-purple-300 transition group"
+          className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-card transition hover:border-trust-300 hover:shadow-lift"
         >
-          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-            💳
-          </div>
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-purple-600 transition duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100">
+            <CreditCard aria-hidden="true" weight="duotone" size={24} />
+          </span>
           <div>
-            <h3 className="font-bold text-slate-800">Earnings</h3>
+            <h2 className="font-bold text-navy-900">Earnings</h2>
             <p className="text-xs text-slate-500">View transactions</p>
           </div>
         </Link>
       </div>
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl font-black text-amber-600">{incoming.length}</p>
-          <p className="text-xs text-slate-500 font-semibold mt-1">Pending Requests</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl font-black text-blue-600">{active.length}</p>
-          <p className="text-xs text-slate-500 font-semibold mt-1">Active Jobs</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl font-black text-emerald-600">{provider?.jobsCompleted || 0}</p>
-          <p className="text-xs text-slate-500 font-semibold mt-1">Jobs Completed</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl font-black text-purple-600">{provider?.completionRate || 0}%</p>
-          <p className="text-xs text-slate-500 font-semibold mt-1">Completion Rate</p>
-        </div>
+      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard icon={Hourglass} tone="amber" label="Pending Requests" value={incoming.length} />
+        <StatCard icon={Wrench} tone="blue" label="Active Jobs" value={active.length} />
+        <StatCard icon={CheckCircle} tone="emerald" label="Jobs Completed" value={provider?.jobsCompleted || 0} />
+        <StatCard icon={Trophy} tone="purple" label="Completion Rate" value={`${provider?.completionRate || 0}%`} />
       </div>
+
       {/* ── My Services Panel ────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            🛠️ My Services
+      <Card padding="p-0" className="mb-8">
+        <div className="border-b border-slate-100 px-6 py-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-navy-900">
+            <Wrench aria-hidden="true" weight="duotone" size={20} className="text-trust-600" /> My Services
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="mt-1 text-xs text-slate-500">
             Manage the services you offer. Customers will see these options when they book you.
           </p>
         </div>
 
         <div className="p-6">
+          {feedback && (
+            <Alert tone={feedback.tone} onClose={() => setFeedback(null)} className="mb-4">
+              {feedback.text}
+            </Alert>
+          )}
+
           {provider?.services?.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
               {provider.services.map((ps) => (
-                <div key={ps.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-emerald-200 transition">
+                <div
+                  key={ps.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4 transition hover:border-trust-200"
+                >
                   <div className="flex-1">
-                    <h3 className="font-bold text-slate-800">{ps.service?.name}</h3>
-                    <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                    <h3 className="font-bold text-navy-900">{ps.service?.name}</h3>
+                    <span className="mt-1 inline-block rounded-full bg-trust-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-trust-700">
                       {ps.service?.category?.name}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleRemoveService(ps.id)}
-                    disabled={serviceActionLoading}
-                    className="text-xs text-rose-500 hover:text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 font-semibold transition"
-                  >
+                  <Button variant="danger" size="sm" onClick={() => setRemoveTarget(ps.id)} disabled={serviceActionLoading}>
                     Remove
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 mb-6">
+            <div id="add-service-section" className="mb-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 py-6 text-center">
               <p className="text-sm text-slate-500">You haven't added any services yet.</p>
             </div>
           )}
 
           {/* Add Service Form */}
-          <form onSubmit={handleAddService} className="flex flex-col md:flex-row gap-3 items-end p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-bold text-slate-700 mb-1">TYPE OR SELECT A SERVICE</label>
-              <input
+          <form
+            onSubmit={handleAddService}
+            id={provider?.services?.length > 0 ? 'add-service-section' : undefined}
+            className="flex flex-col items-end gap-3 rounded-xl border border-trust-100 bg-trust-50/50 p-4 md:flex-row"
+          >
+            <div className="w-full flex-1">
+              <Field
+                label="Type or Select a Service"
                 required
                 list="services-list"
                 type="text"
                 placeholder="e.g. Plumbing Repair"
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                size="sm"
               />
               <datalist id="services-list">
-                {allServices.map(s => (
+                {allServices.map((s) => (
                   <option key={s.id} value={s.name}>
                     {s.category?.name}
                   </option>
@@ -414,148 +430,119 @@ const ProviderDashboard = () => {
               </datalist>
             </div>
 
-            <button
-              type="submit"
-              disabled={serviceActionLoading || !newServiceName}
-              className="w-full md:w-auto px-5 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 h-[42px]"
-            >
-              {serviceActionLoading ? '...' : '+ Add'}
-            </button>
+            <Button type="submit" disabled={!newServiceName} loading={serviceActionLoading} className="w-full md:w-auto">
+              {!serviceActionLoading && <PlusCircle aria-hidden="true" weight="bold" size={15} />}
+              Add Service
+            </Button>
           </form>
         </div>
-      </div>
+      </Card>
 
       {/* ── Job Requests & Bookings Panel ────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            📋 Job Requests & Bookings
+      <Card padding="p-0" className="mb-8">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 pt-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-navy-900">
+            <ClipboardText aria-hidden="true" weight="duotone" size={20} className="text-trust-600" />
+            Job Requests &amp; Bookings
           </h2>
-          <Link to="/my-bookings" className="text-xs text-blue-600 hover:underline font-semibold">
-            View All →
+          <Link
+            to="/my-bookings"
+            className="group inline-flex items-center gap-1 text-xs font-bold text-trust-600 transition hover:text-trust-700"
+          >
+            View All
+            <ArrowRight aria-hidden="true" weight="bold" size={11} className="transition group-hover:translate-x-0.5" />
           </Link>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100">
-          {[
-            { key: 'incoming', label: 'Incoming', count: incoming.length, color: 'amber' },
-            { key: 'active',   label: 'Active',   count: active.length,   color: 'blue' },
-            { key: 'done',     label: 'Completed', count: completed.length, color: 'emerald' },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition ${
-                activeTab === tab.key
-                  ? 'border-emerald-600 text-emerald-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className={`text-xs font-black px-1.5 py-0.5 rounded-full ${
-                  tab.color === 'amber' ? 'bg-amber-100 text-amber-700' :
-                  tab.color === 'blue'  ? 'bg-blue-100 text-blue-700' :
-                                          'bg-emerald-100 text-emerald-700'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="border-b border-slate-100 px-4">
+          <TabBar
+            groupId="provider-jobs"
+            ariaLabel="Job booking sections"
+            active={activeTab}
+            onChange={setActiveTab}
+            tabs={[
+              { id: 'incoming', label: 'Incoming', count: incoming.length },
+              { id: 'active', label: 'Active', count: active.length },
+              { id: 'done', label: 'Completed', count: completed.length },
+            ]}
+          />
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div
+          role="tabpanel"
+          id="gt-tabpanel-provider-jobs-incoming"
+          aria-labelledby="gt-tab-provider-jobs-incoming"
+          className="p-6"
+        >
           {loadingBookings ? (
             <div className="space-y-3">
-              {[1, 2].map(i => <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />)}
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
             </div>
           ) : tabBookings.length === 0 ? (
-            <div className="text-center py-10 text-slate-400">
-              <span className="text-3xl block mb-2">
-                {activeTab === 'incoming' ? '📭' : activeTab === 'active' ? '⚙️' : '🏆'}
-              </span>
-              <p className="text-sm font-semibold">
-                {activeTab === 'incoming' ? 'No pending job requests' :
-                 activeTab === 'active'   ? 'No active jobs right now' :
-                                            'No completed jobs yet'}
-              </p>
-            </div>
+            <EmptyState
+              size="sm"
+              className="!border-0 !bg-transparent"
+              icon={activeTab === 'incoming' ? Package : activeTab === 'active' ? Gear : Trophy}
+              title={
+                activeTab === 'incoming' ? 'No pending job requests'
+                : activeTab === 'active' ? 'No active jobs right now'
+                : 'No completed jobs yet'
+              }
+              body={
+                activeTab === 'incoming'
+                  ? 'New customer requests will appear here the moment they arrive.'
+                  : undefined
+              }
+            />
           ) : (
             <div className="space-y-3">
-              {tabBookings.map(booking => (
-                <JobCard
-                  key={booking.id}
-                  booking={booking}
-                  onAction={handleBookingAction}
-                  loadingId={loadingId}
-                />
+              {tabBookings.map((booking) => (
+                <JobCard key={booking.id} booking={booking} onAction={handleBookingAction} loadingId={loadingId} />
               ))}
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* ── Trust Badges ─────────────────────────────────────────────────── */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-8">
-        <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>🛡️</span> Trust & Verification Badges
+      <Card padding="p-6" className="mb-8">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight text-navy-900">
+          <ShieldCheck aria-hidden="true" weight="duotone" size={20} className="text-trust-600" />
+          Trust &amp; Verification Badges
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <VerificationBadge
-            label="Ghana Card Identity"
-            verified={provider?.identityVerified}
-            pendingStatus={identityStatus}
-          />
-          <div className={`p-4 rounded-xl border ${provider?.phoneVerified ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-            <span className="text-xs font-bold block uppercase">Phone Verified</span>
-            <span className="text-base font-bold mt-1 block">
-              {provider?.phoneVerified ? '🟢 Verified' : '⚪ Not Verified'}
-            </span>
-          </div>
-          <VerificationBadge
-            label="Skills / Trade Cert"
-            verified={provider?.skillsVerified}
-            pendingStatus={skillsStatus}
-          />
-          <div className={`p-4 rounded-xl border ${provider?.locationVerified ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-            <span className="text-xs font-bold block uppercase">Location Verified</span>
-            <span className="text-base font-bold mt-1 block">
-              {provider?.locationVerified ? '🟢 Verified' : '⚪ Not Set'}
-            </span>
-          </div>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <VerificationBadge label="Ghana Card Identity" verified={provider?.identityVerified} pendingStatus={identityStatus} icon={IdentificationCard} />
+          <VerificationBadge label="Phone Verified" verified={provider?.phoneVerified} icon={Phone} />
+          <VerificationBadge label="Skills / Trade Cert" verified={provider?.skillsVerified} pendingStatus={skillsStatus} icon={Certificate} />
+          <VerificationBadge label="Location Verified" verified={provider?.locationVerified} icon={MapPin} />
         </div>
-      </div>
+      </Card>
 
       {/* ── Verification Submission Forms ─────────────────────────────────── */}
       {submitMessage && (
-        <div className={`p-4 rounded-xl text-sm font-semibold mb-6 ${submitMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+        <Alert tone={submitMessage.type} onClose={() => setSubmitMessage(null)} className="mb-6">
           {submitMessage.text}
-        </div>
+        </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Identity Verification Form */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
-            🪪 Identity Verification
+        <Card padding="p-6">
+          <h3 className="mb-1 flex items-center gap-2 text-base font-bold tracking-tight text-navy-900">
+            <IdentificationCard aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+            Identity Verification
           </h3>
-          <p className="text-xs text-gray-500 mb-4">Submit your Ghana Card details to get identity-verified.</p>
+          <p className="mb-4 text-xs text-slate-500">Submit your Ghana Card details to get identity-verified.</p>
           {provider?.identityVerified ? (
-            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-xl text-sm font-semibold">
-              ✅ Your identity is already verified!
-            </div>
+            <Alert tone="success">Your identity is already verified!</Alert>
           ) : identityStatus === 'PENDING' ? (
-            <div className="text-amber-700 bg-amber-50 border border-amber-200 px-4 py-3 rounded-xl text-sm font-semibold">
-              🟡 Verification request is under review.
-            </div>
+            <Alert tone="warning">Verification request is under review.</Alert>
           ) : identityStatus === 'REJECTED' ? (
             <div className="space-y-3">
-              <div className="text-rose-700 bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl text-xs font-semibold">
-                ❌ Previous request was rejected. Please resubmit with corrected details.
-              </div>
+              <Alert tone="error">Previous request was rejected. Please resubmit with corrected details.</Alert>
               <IdentityForm
                 doc={identityDoc} setDoc={setIdentityDoc}
                 note={identityNote} setNote={setIdentityNote}
@@ -571,27 +558,22 @@ const ProviderDashboard = () => {
               onSubmit={() => handleVerificationSubmit('IDENTITY', identityDoc, identityNote)}
             />
           )}
-        </div>
+        </Card>
 
         {/* Skills Verification Form */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
-            📜 Skills / Trade Certificate
+        <Card padding="p-6">
+          <h3 className="mb-1 flex items-center gap-2 text-base font-bold tracking-tight text-navy-900">
+            <Certificate aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+            Skills / Trade Certificate
           </h3>
-          <p className="text-xs text-gray-500 mb-4">Upload your NVTI certificate or relevant trade qualification.</p>
+          <p className="mb-4 text-xs text-slate-500">Upload your NVTI certificate or relevant trade qualification.</p>
           {provider?.skillsVerified ? (
-            <div className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-xl text-sm font-semibold">
-              ✅ Your skills are already verified!
-            </div>
+            <Alert tone="success">Your skills are already verified!</Alert>
           ) : skillsStatus === 'PENDING' ? (
-            <div className="text-amber-700 bg-amber-50 border border-amber-200 px-4 py-3 rounded-xl text-sm font-semibold">
-              🟡 Skills verification request is under review.
-            </div>
+            <Alert tone="warning">Skills verification request is under review.</Alert>
           ) : skillsStatus === 'REJECTED' ? (
             <div className="space-y-3">
-              <div className="text-rose-700 bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl text-xs font-semibold">
-                ❌ Previous request was rejected. Please resubmit with the correct certificate.
-              </div>
+              <Alert tone="error">Previous request was rejected. Please resubmit with the correct certificate.</Alert>
               <SkillsForm
                 doc={skillsDoc} setDoc={setSkillsDoc}
                 note={skillsNote} setNote={setSkillsNote}
@@ -607,51 +589,71 @@ const ProviderDashboard = () => {
               onSubmit={() => handleVerificationSubmit('SKILLS', skillsDoc, skillsNote)}
             />
           )}
-        </div>
+        </Card>
       </div>
 
       {/* ── Verification History ──────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-bold text-gray-900">Verification Request History</h2>
+      <Card padding="p-0" className="overflow-hidden">
+        <div className="border-b border-slate-100 bg-slate-50 px-6 py-4">
+          <h2 className="text-base font-bold tracking-tight text-navy-900">Verification Request History</h2>
         </div>
         {loadingVerifications ? (
-          <div className="p-8 text-center text-gray-400 text-sm animate-pulse">Loading history...</div>
+          <div className="p-8 text-center">
+            <Skeleton className="mx-auto h-16 w-full max-w-md" />
+          </div>
         ) : verifications.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">No verification requests submitted yet.</div>
+          <EmptyState
+            size="sm"
+            className="!border-0 !bg-transparent"
+            icon={Certificate}
+            title="No verification requests yet"
+            body="Submit your identity or skills documents above to start the verification process."
+          />
         ) : (
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="px-6 py-3 font-semibold">Type</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Submitted</th>
-                <th className="px-6 py-3 font-semibold">Admin Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {verifications.map(req => (
-                <tr key={req.id} className="border-b border-gray-50 hover:bg-slate-50">
-                  <td className="px-6 py-3">
-                    <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-bold border border-indigo-100">
-                      {req.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3">
-                    {req.status === 'PENDING'  && <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-xs font-bold">Pending</span>}
-                    {req.status === 'VERIFIED' && <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full text-xs font-bold">Verified ✓</span>}
-                    {req.status === 'REJECTED' && <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2 py-1 rounded-full text-xs font-bold">Rejected</span>}
-                  </td>
-                  <td className="px-6 py-3 text-gray-500 text-xs">
-                    {new Date(req.submittedAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-3 text-gray-500 text-xs">{req.adminNotes || '—'}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <caption className="sr-only-x">Your verification request history</caption>
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th scope="col" className="px-6 py-3 font-bold">Type</th>
+                  <th scope="col" className="px-6 py-3 font-bold">Status</th>
+                  <th scope="col" className="px-6 py-3 font-bold">Submitted</th>
+                  <th scope="col" className="px-6 py-3 font-bold">Admin Notes</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {verifications.map((req) => (
+                  <tr key={req.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-3">
+                      <span className="rounded border border-indigo-100 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700">
+                        {req.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <StatusBadge status={req.status} domain="verification" />
+                    </td>
+                    <td className="px-6 py-3 text-xs text-slate-500 tabular-nums">
+                      {new Date(req.submittedAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-3 text-xs text-slate-500">{req.adminNotes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </Card>
+
+      {/* Remove-service confirmation */}
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={() => handleRemoveService(removeTarget)}
+        title="Remove this service?"
+        message="Customers will no longer see this service when booking you. You can add it back later."
+        confirmLabel="Remove Service"
+        loading={serviceActionLoading}
+      />
     </div>
   );
 };
@@ -660,34 +662,26 @@ const ProviderDashboard = () => {
 function IdentityForm({ doc, setDoc, note, setNote, loading, onSubmit }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-3">
-      <div>
-        <label className="block text-xs font-bold text-gray-600 mb-1">GHANA CARD ID NUMBER</label>
-        <input
-          type="text"
-          required
-          value={doc}
-          onChange={(e) => setDoc(e.target.value)}
-          placeholder="GHA-XXXXXXXXX-X"
-          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-bold text-gray-600 mb-1">NOTES (Optional)</label>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Any additional information..."
-          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2.5 rounded-xl shadow-sm transition disabled:opacity-50"
-      >
-        {loading ? 'Submitting...' : 'Submit Identity Request 🪪'}
-      </button>
+      <Field
+        label="Ghana Card ID Number"
+        type="text"
+        required
+        size="sm"
+        value={doc}
+        onChange={(e) => setDoc(e.target.value)}
+        placeholder="GHA-XXXXXXXXX-X"
+      />
+      <Field
+        label="Notes (optional)"
+        type="text"
+        size="sm"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Any additional information..."
+      />
+      <Button type="submit" loading={loading} className="w-full">
+        Submit Identity Request
+      </Button>
     </form>
   );
 }
@@ -695,34 +689,26 @@ function IdentityForm({ doc, setDoc, note, setNote, loading, onSubmit }) {
 function SkillsForm({ doc, setDoc, note, setNote, loading, onSubmit }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-3">
-      <div>
-        <label className="block text-xs font-bold text-gray-600 mb-1">CERTIFICATE / DOCUMENT URL</label>
-        <input
-          type="text"
-          required
-          value={doc}
-          onChange={(e) => setDoc(e.target.value)}
-          placeholder="https://drive.google.com/your-certificate"
-          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-bold text-gray-600 mb-1">TRADE / SKILL DESCRIPTION</label>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. NVTI Level 2 Electrician, 2019"
-          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2.5 rounded-xl shadow-sm transition disabled:opacity-50"
-      >
-        {loading ? 'Submitting...' : 'Submit Skills Request 📜'}
-      </button>
+      <Field
+        label="Certificate / Document URL"
+        type="url"
+        required
+        size="sm"
+        value={doc}
+        onChange={(e) => setDoc(e.target.value)}
+        placeholder="https://drive.google.com/your-certificate"
+      />
+      <Field
+        label="Trade / Skill Description"
+        type="text"
+        size="sm"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="e.g. NVTI Level 2 Electrician, 2019"
+      />
+      <Button type="submit" loading={loading} className="w-full">
+        Submit Skills Request
+      </Button>
     </form>
   );
 }

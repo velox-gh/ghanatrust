@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { paymentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { CurrencyCircleDollar, Receipt, CheckCircle } from '@phosphor-icons/react';
+import { Alert, Card, EmptyState, Spinner, StatCard, StatusBadge } from '../components/ui';
 
 const Payments = () => {
   const { user } = useAuth();
@@ -27,8 +29,8 @@ const Payments = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 py-10 flex items-center justify-center">
-        <div className="text-slate-500 animate-pulse font-semibold">Loading transactions...</div>
+      <div className="flex min-h-screen items-center justify-center bg-navy-50 py-10">
+        <Spinner size="lg" className="text-trust-600" />
       </div>
     );
   }
@@ -36,68 +38,74 @@ const Payments = () => {
   const role = user?.role;
   const totalSpent = role === 'CUSTOMER' ? payments.filter(p => p.status === 'COMPLETED').reduce((acc, curr) => acc + curr.amount, 0) : 0;
   const totalEarned = role === 'PROVIDER' ? payments.filter(p => p.status === 'COMPLETED').reduce((acc, curr) => acc + curr.amount, 0) : 0;
+  const completedCount = payments.filter(p => p.status === 'COMPLETED').length;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+    <div className="min-h-screen bg-navy-50 py-10">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+
         {/* Header */}
-        <div className="mb-8 flex justify-between items-end">
+        <div className="mb-8 flex items-end justify-between">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Transaction History</h1>
-            <p className="text-sm text-slate-500 mt-1">View your mobile money payments and service earnings.</p>
+            <h1 className="text-3xl font-black tracking-tight text-navy-900">Transaction History</h1>
+            <p className="mt-1 text-sm text-slate-600">View your mobile money payments and service earnings.</p>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <p className="text-xs text-slate-500 font-bold uppercase mb-1">Total {role === 'CUSTOMER' ? 'Spent' : 'Earnings'}</p>
-            <p className="text-3xl font-black text-emerald-600">GH₵ {role === 'CUSTOMER' ? totalSpent.toFixed(2) : totalEarned.toFixed(2)}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <p className="text-xs text-slate-500 font-bold uppercase mb-1">Total Transactions</p>
-            <p className="text-3xl font-black text-slate-800">{payments.length}</p>
-          </div>
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <StatCard
+            icon={CurrencyCircleDollar}
+            tone="trust"
+            label={role === 'CUSTOMER' ? 'Total Spent' : 'Total Earned'}
+            value={`GH₵ ${(role === 'CUSTOMER' ? totalSpent : totalEarned).toFixed(2)}`}
+          />
+          <StatCard icon={Receipt} tone="blue" label="Total Transactions" value={payments.length} />
+          <StatCard
+            icon={CheckCircle}
+            tone="emerald"
+            label="Completed Payments"
+            value={completedCount}
+            sublabel={payments.length ? `${Math.round((completedCount / payments.length) * 100)}% of all transactions` : undefined}
+          />
         </div>
 
-        {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm mb-6 border border-red-200">{error}</div>
-        )}
+        {error && <Alert tone="error" className="mb-6">{error}</Alert>}
 
         {/* Transactions List */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500">
-                <tr>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Date</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Transaction ID</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Service</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">{role === 'CUSTOMER' ? 'Paid To' : 'Received From'}</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Method</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">Amount</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payments.length === 0 ? (
+        {payments.length === 0 ? (
+          <EmptyState
+            icon={Receipt}
+            title="No Transactions Yet"
+            body="Your mobile money payments and service earnings will appear here once you transact."
+            action={role === 'CUSTOMER' ? { label: 'Browse Services', to: '/services' } : undefined}
+          />
+        ) : (
+          <Card padding="p-0" className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                      No transactions found.
-                    </td>
+                    <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Date</th>
+                    <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Transaction ID</th>
+                    <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Service</th>
+                    <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider">{role === 'CUSTOMER' ? 'Paid To' : 'Received From'}</th>
+                    <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Method</th>
+                    <th scope="col" className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Amount</th>
+                    <th scope="col" className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Status</th>
                   </tr>
-                ) : (
-                  payments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-slate-50 transition">
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((payment) => (
+                    <tr key={payment.id} className="transition hover:bg-slate-50">
                       <td className="px-6 py-4 text-slate-600">
                         {new Date(payment.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-slate-500">
                         {payment.transactionId}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-800">
-                        <Link to={`/my-bookings/${payment.bookingId}`} className="hover:text-blue-600">
+                      <td className="px-6 py-4 font-semibold text-navy-900">
+                        <Link to={`/my-bookings/${payment.bookingId}`} className="transition hover:text-trust-600">
                           {payment.booking?.service?.name || 'Service'}
                         </Link>
                       </td>
@@ -107,29 +115,23 @@ const Payments = () => {
                           : `${payment.booking?.customer?.firstName} ${payment.booking?.customer?.lastName}`}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase">
+                        <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                           {payment.method.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-black text-slate-900">
+                      <td className="px-6 py-4 text-right font-black tabular-nums text-navy-900">
                         GH₵ {payment.amount.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className={`inline-block px-2 py-1 text-[10px] font-bold uppercase rounded-full border ${
-                          payment.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                          payment.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          {payment.status}
-                        </span>
+                        <StatusBadge status={payment.status} domain="payment" size="sm" />
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -1,12 +1,15 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = rawApiUrl.replace(/\/+$/, '') + '/api';
 
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    // Bypass ngrok's browser warning interstitial page
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
@@ -69,8 +72,20 @@ export const paymentAPI = {
 
 // Admin endpoints
 export const adminAPI = {
+  getStats: () => api.get('/admin/stats'),
+  getUsers: (params) => api.get('/admin/users', { params }),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  getProviders: (params) => api.get('/admin/providers', { params }),
+  updateProvider: (id, data) => api.put(`/admin/providers/${id}`, data),
+  getBookings: (params) => api.get('/admin/bookings', { params }),
+  adminCancelBooking: (id, reason) => api.patch(`/admin/bookings/${id}/cancel`, { reason }),
+  getPayments: (params) => api.get('/admin/payments', { params }),
+  refundPayment: (id, reason) => api.patch(`/admin/payments/${id}/refund`, { reason }),
+  getDisputes: (params) => api.get('/admin/disputes', { params }),
   getVerifications: () => api.get('/admin/verifications'),
   updateVerificationStatus: (id, data) => api.put(`/admin/verifications/${id}/status`, data),
+  getAuditLogs: (params) => api.get('/admin/audit-logs', { params }),
 };
 
 // Dispute endpoints

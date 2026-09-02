@@ -18,7 +18,33 @@ import disputeRoutes from './routes/disputeRoutes.js';
 const app = express();
 
 // Middleware
-app.use(cors({ origin: true, credentials: true })); // Allow credentials for cookies
+const allowedOrigins = [
+  /\.ngrok-free\.app$/,
+  /\.ngrok\.io$/,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.some((o) =>
+      typeof o === 'string' ? o === origin : o.test(origin)
+    );
+    callback(isAllowed ? null : new Error('Not allowed by CORS'), isAllowed);
+  },
+  credentials: true,
+  exposedHeaders: ['ngrok-skip-browser-warning'],
+}));
+
+// Bypass ngrok's browser warning interstitial page for all API responses
+app.use((req, res, next) => {
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  next();
+});
+
 app.use(compression());
 app.use(cookieParser());
 app.use(express.json());

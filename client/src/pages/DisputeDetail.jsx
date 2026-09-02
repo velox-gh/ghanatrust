@@ -1,14 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, SealCheck, UploadSimple } from '@phosphor-icons/react';
 import { disputeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-
-const STATUS_CONFIG = {
-  OPEN: { label: 'Open', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-  UNDER_INVESTIGATION: { label: 'Under Investigation', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  RESOLVED: { label: 'Resolved', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  CLOSED: { label: 'Closed', color: 'bg-slate-100 text-slate-800 border-slate-300' },
-};
+import { Button, Card, Field, StatusBadge, Spinner, Alert } from '../components/ui';
 
 const TYPE_CONFIG = {
   CUSTOMER_COMPLAINT: 'Customer Complaint',
@@ -21,6 +16,7 @@ const DisputeDetail = () => {
   const [dispute, setDispute] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState(null); // { tone, message }
 
   // Forms state
   const [evidenceUrl, setEvidenceUrl] = useState('');
@@ -57,9 +53,10 @@ const DisputeDetail = () => {
       await disputeAPI.uploadEvidence(id, { fileUrl: evidenceUrl, description: evidenceDesc });
       setEvidenceUrl('');
       setEvidenceDesc('');
+      setFeedback({ tone: 'success', message: 'Evidence uploaded successfully.' });
       fetchDispute();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to upload evidence');
+      setFeedback({ tone: 'error', message: err.response?.data?.message || 'Failed to upload evidence' });
     } finally {
       setSubmittingEvidence(false);
     }
@@ -69,9 +66,10 @@ const DisputeDetail = () => {
     try {
       setSubmittingAdmin(true);
       await disputeAPI.investigateDispute(id, { adminNotes });
+      setFeedback({ tone: 'success', message: 'Investigation started — dispute assigned to you.' });
       fetchDispute();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update status');
+      setFeedback({ tone: 'error', message: err.response?.data?.message || 'Failed to update status' });
     } finally {
       setSubmittingAdmin(false);
     }
@@ -79,87 +77,131 @@ const DisputeDetail = () => {
 
   const handleResolve = async () => {
     if (!resolution) {
-      alert('Resolution summary is required');
+      setFeedback({ tone: 'error', message: 'Resolution summary is required before closing a dispute.' });
       return;
     }
     try {
       setSubmittingAdmin(true);
       await disputeAPI.resolveDispute(id, { resolution, adminNotes });
+      setFeedback({ tone: 'success', message: 'Dispute resolved and closed.' });
       fetchDispute();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resolve dispute');
+      setFeedback({ tone: 'error', message: err.response?.data?.message || 'Failed to resolve dispute' });
     } finally {
       setSubmittingAdmin(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center"><div className="animate-spin h-8 w-8 border-b-2 border-blue-600 mx-auto rounded-full"></div></div>;
-  if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
-  if (!dispute) return <div className="p-8 text-center">Dispute not found</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-16 text-trust-600">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <Alert tone="error">{error}</Alert>
+      </div>
+    );
+  }
+  if (!dispute) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <Alert tone="warning">Dispute not found.</Alert>
+      </div>
+    );
+  }
 
-  const statusCfg = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.OPEN;
   const isAdmin = user?.role === 'ADMIN';
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <Link to="/disputes" className="text-blue-600 hover:underline mb-6 inline-block">&larr; Back to Disputes</Link>
-      
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <Button variant="secondary" size="sm" to="/disputes" className="mb-6">
+        <ArrowLeft aria-hidden="true" weight="bold" size={14} /> Back to Disputes
+      </Button>
+
+      {feedback && (
+        <Alert tone={feedback.tone} onClose={() => setFeedback(null)} className="mb-6">
+          {feedback.message}
+        </Alert>
+      )}
+
+      <Card padding="p-6 md:p-8" className="mb-8">
+        <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Dispute #{dispute.id}</h1>
-            <p className="text-slate-600 mt-1">{TYPE_CONFIG[dispute.type] || dispute.type} - Raised on {new Date(dispute.createdAt).toLocaleDateString()}</p>
+            <h1 className="text-2xl font-bold tracking-tight text-navy-900">Dispute #{dispute.id}</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {TYPE_CONFIG[dispute.type] || dispute.type} · Raised on {new Date(dispute.createdAt).toLocaleDateString()}
+            </p>
           </div>
-          <span className={`inline-flex items-center px-3 py-1.5 rounded-full border text-sm font-bold ${statusCfg.color}`}>
-            {statusCfg.label}
-          </span>
+          <StatusBadge status={dispute.status} domain="dispute" size="lg" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-2">
           <div>
-            <h3 className="font-semibold text-slate-900 mb-2">Complaint Details</h3>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-              <p className="text-sm font-bold text-slate-900 mb-1">Reason: <span className="font-normal text-slate-700">{dispute.reason}</span></p>
-              <p className="text-sm text-slate-700 mt-3 whitespace-pre-wrap">{dispute.description || 'No additional description provided.'}</p>
+            <h2 className="mb-2 font-bold text-navy-900">Complaint Details</h2>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="mb-1 text-sm font-bold text-navy-900">
+                Reason: <span className="font-normal text-slate-600">{dispute.reason}</span>
+              </p>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+                {dispute.description || 'No additional description provided.'}
+              </p>
             </div>
           </div>
-          
+
           <div>
-            <h3 className="font-semibold text-slate-900 mb-2">Booking Info</h3>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-sm">
-              <p className="mb-1"><span className="font-semibold">Service:</span> {dispute.booking?.service?.name}</p>
-              <p className="mb-1"><span className="font-semibold">Customer:</span> {dispute.booking?.customer?.firstName} {dispute.booking?.customer?.lastName}</p>
-              <p><span className="font-semibold">Provider:</span> {dispute.booking?.provider?.user?.firstName} {dispute.booking?.provider?.user?.lastName}</p>
-              <Link to={`/my-bookings/${dispute.bookingId}`} className="text-blue-600 hover:underline mt-2 inline-block">View Booking &rarr;</Link>
+            <h2 className="mb-2 font-bold text-navy-900">Booking Info</h2>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              <p className="mb-1"><span className="font-semibold text-navy-900">Service:</span> {dispute.booking?.service?.name}</p>
+              <p className="mb-1"><span className="font-semibold text-navy-900">Customer:</span> {dispute.booking?.customer?.firstName} {dispute.booking?.customer?.lastName}</p>
+              <p><span className="font-semibold text-navy-900">Provider:</span> {dispute.booking?.provider?.user?.firstName} {dispute.booking?.provider?.user?.lastName}</p>
+              <Link
+                to={`/my-bookings/${dispute.bookingId}`}
+                className="mt-2 inline-flex items-center gap-1 font-semibold text-trust-600 hover:text-trust-700 hover:underline"
+              >
+                View Booking <ArrowRight aria-hidden="true" weight="bold" size={12} />
+              </Link>
             </div>
           </div>
         </div>
 
         {/* Resolution Box */}
         {dispute.status === 'RESOLVED' && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-8">
-            <h3 className="text-emerald-900 font-bold mb-2">Resolution</h3>
-            <p className="text-emerald-800">{dispute.resolution}</p>
-            <p className="text-xs text-emerald-600 mt-3">Resolved on {new Date(dispute.resolvedAt).toLocaleDateString()} by Admin</p>
+          <div className="mb-8 rounded-xl border border-trust-200 bg-trust-50 p-5">
+            <h2 className="mb-2 flex items-center gap-2 font-bold text-trust-900">
+              <SealCheck aria-hidden="true" weight="fill" size={18} className="text-trust-600" /> Resolution
+            </h2>
+            <p className="leading-relaxed text-trust-800">{dispute.resolution}</p>
+            <p className="mt-3 text-xs font-medium text-trust-600 tabular-nums">
+              Resolved on {new Date(dispute.resolvedAt).toLocaleDateString()} by Admin
+            </p>
           </div>
         )}
 
         {/* Evidence Section */}
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-slate-900 mb-4">Evidence & Documentation</h3>
+        <div className="mb-2">
+          <h2 className="mb-4 text-lg font-bold tracking-tight text-navy-900">Evidence &amp; Documentation</h2>
           {dispute.evidence?.length === 0 ? (
-            <p className="text-slate-500 italic mb-4">No evidence uploaded yet.</p>
+            <p className="mb-4 text-sm italic text-slate-500">No evidence uploaded yet.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {dispute.evidence.map((ev) => (
-                <div key={ev.id} className="border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 mb-2">
+                <div key={ev.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
+                  <p className="mb-2 text-xs font-semibold text-slate-500">
                     Uploaded by {ev.user.firstName} ({ev.user.role}) on {new Date(ev.createdAt).toLocaleDateString()}
                   </p>
-                  <a href={ev.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:underline break-all block mb-2">
+                  <a
+                    href={ev.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mb-2 block break-all font-semibold text-trust-600 hover:text-trust-700 hover:underline"
+                  >
                     {ev.fileUrl}
                   </a>
-                  {ev.description && <p className="text-sm text-slate-700">{ev.description}</p>}
+                  {ev.description && <p className="text-sm leading-relaxed text-slate-600">{ev.description}</p>}
                 </div>
               ))}
             </div>
@@ -167,89 +209,100 @@ const DisputeDetail = () => {
 
           {/* Upload Evidence Form (Only if not resolved/closed) */}
           {dispute.status !== 'RESOLVED' && dispute.status !== 'CLOSED' && !isAdmin && (
-            <form onSubmit={handleEvidenceSubmit} className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-3">Upload New Evidence</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">File URL / Image Link *</label>
-                  <input
-                    type="url"
-                    required
-                    value={evidenceUrl}
-                    onChange={(e) => setEvidenceUrl(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description (Optional)</label>
-                  <input
-                    type="text"
-                    value={evidenceDesc}
-                    onChange={(e) => setEvidenceDesc(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    placeholder="Briefly describe this evidence"
-                  />
-                </div>
+            <form onSubmit={handleEvidenceSubmit} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <h3 className="mb-3 font-bold text-navy-900">Upload New Evidence</h3>
+              <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field
+                  label="File URL / Image Link"
+                  type="url"
+                  required
+                  size="sm"
+                  value={evidenceUrl}
+                  onChange={(e) => setEvidenceUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                />
+                <Field
+                  label="Description (Optional)"
+                  type="text"
+                  size="sm"
+                  value={evidenceDesc}
+                  onChange={(e) => setEvidenceDesc(e.target.value)}
+                  placeholder="Briefly describe this evidence"
+                />
               </div>
-              <button
-                type="submit"
-                disabled={submittingEvidence}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-              >
-                {submittingEvidence ? 'Uploading...' : 'Upload Evidence'}
-              </button>
+              <Button type="submit" loading={submittingEvidence} size="sm">
+                <UploadSimple aria-hidden="true" weight="bold" size={14} />
+                {submittingEvidence ? 'Uploading…' : 'Upload Evidence'}
+              </Button>
             </form>
           )}
         </div>
 
         {/* Admin Controls */}
         {isAdmin && dispute.status !== 'RESOLVED' && dispute.status !== 'CLOSED' && (
-          <div className="bg-slate-900 text-white rounded-xl p-6">
-            <h3 className="text-lg font-bold mb-4">Admin Investigation Panel</h3>
+          <div className="mt-8 rounded-2xl bg-navy-900 p-6 text-white shadow-navy">
+            <h2 className="mb-4 text-lg font-bold tracking-tight">Admin Investigation Panel</h2>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Internal Notes (Visible only to Admins)</label>
+              <label
+                htmlFor="admin-notes"
+                className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300"
+              >
+                Internal Notes (Visible only to Admins)
+              </label>
               <textarea
+                id="admin-notes"
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
                 rows={3}
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Internal investigation notes, visible only to admins"
+                className="w-full rounded-xl border border-navy-700 bg-navy-800 px-3 py-2.5 text-sm text-white placeholder:text-slate-400 transition focus:outline-none focus:ring-2 focus:ring-trust-500"
                 placeholder="Investigation notes..."
               />
             </div>
-            
+
             {dispute.status === 'OPEN' && (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleInvestigate}
-                disabled={submittingAdmin}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 mb-6"
+                loading={submittingAdmin}
+                className="mb-6"
               >
                 Start Investigation (Assign to me)
-              </button>
+              </Button>
             )}
 
             {(dispute.status === 'UNDER_INVESTIGATION' || dispute.status === 'OPEN') && (
-              <div className="pt-6 border-t border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Final Resolution (Visible to users)</label>
+              <div className="border-t border-navy-700 pt-6">
+                <label
+                  htmlFor="admin-resolution"
+                  className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-300"
+                >
+                  Final Resolution (Visible to users)
+                </label>
                 <textarea
+                  id="admin-resolution"
                   value={resolution}
                   onChange={(e) => setResolution(e.target.value)}
                   rows={3}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent mb-4"
+                  aria-label="Final resolution summary, visible to users"
+                  className="w-full rounded-xl border border-navy-700 bg-navy-800 px-3 py-2.5 text-sm text-white placeholder:text-slate-400 transition focus:outline-none focus:ring-2 focus:ring-trust-500"
                   placeholder="Summarize the outcome (e.g. Refunded customer...)"
                 />
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={handleResolve}
-                  disabled={submittingAdmin}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                  loading={submittingAdmin}
+                  className="mt-4"
                 >
-                  Resolve & Close Dispute
-                </button>
+                  Resolve &amp; Close Dispute
+                </Button>
               </div>
             )}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,14 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Scales, ArrowRight } from '@phosphor-icons/react';
 import { disputeAPI } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-
-const STATUS_CONFIG = {
-  OPEN: { label: 'Open', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-  UNDER_INVESTIGATION: { label: 'Under Investigation', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  RESOLVED: { label: 'Resolved', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  CLOSED: { label: 'Closed', color: 'bg-slate-100 text-slate-800 border-slate-300' },
-};
+import { StatusBadge, EmptyState, Spinner, Alert } from '../components/ui';
 
 const TYPE_CONFIG = {
   CUSTOMER_COMPLAINT: 'Customer Complaint',
@@ -19,7 +13,6 @@ const DisputesList = () => {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user } = useAuth();
 
   useEffect(() => {
     fetchDisputes();
@@ -29,7 +22,7 @@ const DisputesList = () => {
     try {
       const res = await disputeAPI.getDisputes();
       setDisputes(res.data.data);
-    } catch (err) {
+    } catch {
       setError('Failed to load disputes');
     } finally {
       setLoading(false);
@@ -37,76 +30,85 @@ const DisputesList = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center"><div className="animate-spin h-8 w-8 border-b-2 border-blue-600 mx-auto rounded-full"></div></div>;
+    return (
+      <div className="flex items-center justify-center p-16 text-trust-600">
+        <Spinner size="md" />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="p-8 text-center text-red-600">{error}</div>;
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Alert tone="error">{error}</Alert>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Disputes Center</h1>
-          <p className="text-slate-600">Manage and track your disputes</p>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-trust-50 text-trust-600">
+            <Scales aria-hidden="true" weight="duotone" size={24} />
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-navy-900">Disputes Center</h1>
+            <p className="text-sm text-slate-500">Manage and track your disputes</p>
+          </div>
         </div>
       </div>
 
       {disputes.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-          <div className="text-5xl mb-4">⚖️</div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">No Disputes Found</h3>
-          <p className="text-slate-600 max-w-sm mx-auto">
-            You don't have any active or past disputes.
-          </p>
-        </div>
+        <EmptyState
+          icon={Scales}
+          title="No disputes filed"
+          body="You don't have any active or past disputes. If something goes wrong with a booking, you can raise a dispute from the booking detail page."
+          action={{ label: 'View My Bookings', to: '/my-bookings' }}
+        />
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">ID</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Type</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Booking Service</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Date</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {disputes.map((dispute) => {
-                const statusCfg = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.OPEN;
-                return (
-                  <tr key={dispute.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4 font-mono text-sm text-slate-600">#{dispute.id}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left">
+              <thead className="border-b border-slate-200 bg-slate-50">
+                <tr>
+                  <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">ID</th>
+                  <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Type</th>
+                  <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Booking Service</th>
+                  <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
+                  <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Date</th>
+                  <th scope="col" className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {disputes.map((dispute) => (
+                  <tr key={dispute.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-4 text-sm font-semibold tabular-nums text-slate-600">#{dispute.id}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-navy-900">
                       {TYPE_CONFIG[dispute.type] || dispute.type}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {dispute.booking?.service?.name || 'Unknown Service'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full border ${statusCfg.color}`}>
-                        {statusCfg.label}
-                      </span>
+                      <StatusBadge status={dispute.status} domain="dispute" />
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">
+                    <td className="px-6 py-4 text-sm text-slate-500 tabular-nums">
                       {new Date(dispute.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium">
                       <Link
                         to={`/disputes/${dispute.id}`}
-                        className="text-blue-600 hover:text-blue-900 hover:underline"
+                        className="inline-flex items-center gap-1 font-semibold text-trust-600 hover:text-trust-700 hover:underline"
                       >
-                        View Details
+                        View Details <ArrowRight aria-hidden="true" weight="bold" size={12} />
                       </Link>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
