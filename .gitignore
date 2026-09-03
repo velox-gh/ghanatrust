@@ -12,3 +12,8 @@ client/*.env
 # Server environment
 server/.env
 server/*.env
+# Dependencies
+node_modules/
+
+# Build output
+dist/
