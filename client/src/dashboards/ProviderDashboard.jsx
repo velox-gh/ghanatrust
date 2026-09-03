@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Wrench, ClipboardText, PlusCircle, CreditCard, ShieldCheck, User, CalendarCheck,
   ArrowRight, CheckCircle, XCircle, Hourglass, IdentificationCard, Certificate,
-  MapPin, Phone, Trophy, Package, Gear,
+  MapPin, Phone, Trophy, Package, Gear, Rocket, Lightning, Crown, Leaf,
 } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
-import { providerAPI, bookingAPI, serviceAPI } from '../services/api';
+import { providerAPI, bookingAPI, serviceAPI, subscriptionAPI } from '../services/api';
 import {
   Button, Card, StatusBadge, StatCard, TabBar, Field, Alert, ConfirmDialog,
   Skeleton, EmptyState, TrustBadge, Rating,
@@ -49,6 +49,32 @@ const VerificationBadge = ({ label, verified, pendingStatus, icon: Icon }) => {
     </div>
   );
 };
+
+// ─── Subscription plans (prices match server PLAN_PRICES) ──────────────────────
+const PLANS = [
+  {
+    id: 'FREE',
+    name: 'Free',
+    price: 0,
+    icon: Leaf,
+    features: ['Standard search listing', 'Trust Score & verification badges', 'Unlimited bookings'],
+  },
+  {
+    id: 'PRO',
+    name: 'Pro',
+    price: 50,
+    icon: Lightning,
+    features: ['Ranked above Free providers', 'Pro badge on your profile', 'Priority in search filters'],
+  },
+  {
+    id: 'FEATURED',
+    name: 'Featured',
+    price: 120,
+    icon: Crown,
+    popular: true,
+    features: ['Top of search results', 'Featured badge on your profile', 'Maximum visibility for 30 days'],
+  },
+];
 
 // ─── Incoming Job Request Card ─────────────────────────────────────────────────
 const JobCard = ({ booking, onAction, loadingId }) => {
@@ -127,6 +153,8 @@ const JobCard = ({ booking, onAction, loadingId }) => {
 const ProviderDashboard = () => {
   const { user, refreshUser } = useAuth();
   const provider = user?.provider;
+  const subActive = provider?.subscriptionExpiresAt && new Date(provider.subscriptionExpiresAt) > new Date();
+  const currentTier = subActive ? provider.subscriptionTier : 'FREE';
 
   // Verification state
   const [verifications, setVerifications] = useState([]);
@@ -148,6 +176,7 @@ const ProviderDashboard = () => {
   const [allServices, setAllServices] = useState([]);
   const [newServiceName, setNewServiceName] = useState('');
   const [serviceActionLoading, setServiceActionLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState('');
 
   // Feedback & confirms
   const [feedback, setFeedback] = useState(null); // { tone, text }
@@ -205,6 +234,21 @@ const ProviderDashboard = () => {
       setFeedback({ tone: 'error', text: err.response?.data?.message || 'Failed to add service' });
     } finally {
       setServiceActionLoading(false);
+    }
+  };
+
+  const handleChoosePlan = async (plan) => {
+    setBillingLoading(plan);
+    try {
+      const res = await subscriptionAPI.initializeSubscription(plan);
+      const data = res.data;
+      if (!data.success) throw new Error(data.message);
+
+      // Redirect to Paystack's secure checkout (MoMo / card)
+      window.location.href = data.authorizationUrl;
+    } catch (err) {
+      setFeedback({ tone: 'error', text: err.response?.data?.message || 'Could not start checkout. Please try again.' });
+      setBillingLoading('');
     }
   };
 
@@ -642,6 +686,79 @@ const ProviderDashboard = () => {
             </table>
           </div>
         )}
+      </Card>
+
+      {/* ── Subscription & Billing ─────────────────────────────────────────── */}
+      <Card padding="p-6" className="mb-8">
+        <h3 className="mb-1 flex items-center gap-2 text-base font-bold tracking-tight text-navy-900">
+          <Rocket aria-hidden="true" weight="duotone" size={19} className="text-trust-600" />
+          Grow Faster — Subscription Plans
+        </h3>
+        <p className="mb-4 text-xs text-slate-500">
+          Boost your rank in customer searches. Pay securely via Paystack (MoMo or card). Plans run for 30 days —
+          buying a new plan stacks 30 days onto your current expiry.
+        </p>
+
+        {currentTier !== 'FREE' && (
+          <Alert tone="success" className="mb-4">
+            Your <strong>{currentTier}</strong> plan is active
+            {provider?.subscriptionExpiresAt
+              ? ` until ${new Date(provider.subscriptionExpiresAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}`
+              : ''}
+            .
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {PLANS.map((p) => {
+            const isCurrent = currentTier === p.id;
+            const Icon = p.icon;
+            return (
+              <div
+                key={p.id}
+                className={`relative rounded-2xl border bg-white p-5 shadow-card ${
+                  isCurrent
+                    ? 'border-trust-500 ring-2 ring-trust-100'
+                    : p.popular
+                      ? 'border-indigo-300'
+                      : 'border-slate-200'
+                }`}
+              >
+                {p.popular && !isCurrent && (
+                  <span className="absolute -top-2.5 right-4 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                    Most Popular
+                  </span>
+                )}
+                <div className="flex items-center gap-2">
+                  <Icon aria-hidden="true" weight="duotone" size={20} className="text-trust-600" />
+                  <h4 className="text-sm font-black uppercase tracking-wide text-navy-900">{p.name}</h4>
+                </div>
+                <p className="mt-3">
+                  <span className="text-2xl font-black tabular-nums text-navy-900">GH₵ {p.price}</span>
+                  {p.price > 0 && <span className="text-xs font-semibold text-slate-400"> /month</span>}
+                </p>
+                <ul className="mt-4 space-y-2">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-xs text-slate-600">
+                      <CheckCircle aria-hidden="true" weight="bold" size={13} className="mt-0.5 shrink-0 text-trust-500" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  size="sm"
+                  variant={p.id === 'FREE' ? 'secondary' : 'primary'}
+                  className="mt-5 w-full"
+                  disabled={isCurrent || p.id === 'FREE'}
+                  loading={billingLoading === p.id}
+                  onClick={() => handleChoosePlan(p.id)}
+                >
+                  {isCurrent ? 'Current Plan' : p.id === 'FREE' ? 'Default' : `Upgrade to ${p.name}`}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
       {/* Remove-service confirmation */}

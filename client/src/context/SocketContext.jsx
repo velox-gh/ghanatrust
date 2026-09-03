@@ -16,8 +16,9 @@ export const SocketProvider = ({ children }) => {
     let newSocket;
 
     if (isAuthenticated && user) {
-      // Connect to the backend URL
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      // Same-origin by default (vite proxies /socket.io with ws) — works on
+      // localhost, LAN devices and ngrok tunnels without env changes
+      const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
       // If VITE_API_URL has /api at the end, remove it
       const socketUrl = API_URL.replace('/api', '');
 

@@ -11,6 +11,9 @@ import TourComponent from './components/TourComponent';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import GoogleSuccess from './pages/GoogleSuccess';
+import PaymentCallback from './pages/PaymentCallback';
+import BillingCallback from './pages/BillingCallback';
 import Services from './pages/Services';
 import ServiceDetails from './pages/ServiceDetails';
 import ProviderProfile from './pages/ProviderProfile';
@@ -41,6 +44,9 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/auth/success" element={<GoogleSuccess />} />
+                <Route path="/payments/callback" element={<PaymentCallback />} />
+                <Route path="/billing/callback" element={<BillingCallback />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/services/:id" element={<ServiceDetails />} />
                 <Route path="/providers/:id" element={<ProviderProfile />} />

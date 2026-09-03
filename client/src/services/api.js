@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Same-origin by default: vite proxies /api to the backend, so localhost, LAN
+// devices and ngrok tunnels all reach the right API without env changes.
+// Set VITE_API_URL only to point every client at one fixed server.
+const rawApiUrl = import.meta.env.VITE_API_URL || window.location.origin;
 const API_URL = rawApiUrl.replace(/\/+$/, '') + '/api';
 
 const api = axios.create({
@@ -64,10 +67,18 @@ export const bookingAPI = {
   createReview: (data) => api.post('/reviews', data),
 };
 
-// Payment endpoints
+// Payment endpoints (Paystack)
 export const paymentAPI = {
-  createPayment: (data) => api.post('/payments', data),
+  initializePayment: (bookingId) => api.post('/payments/initialize', { bookingId }),
+  verifyPayment: (reference) => api.get(`/payments/verify/${reference}`),
   getTransactionHistory: () => api.get('/payments/history'),
+};
+
+// Subscription endpoints (Pro/Featured plans via Paystack)
+export const subscriptionAPI = {
+  initializeSubscription: (plan) => api.post('/subscriptions/initialize', { plan }),
+  verifySubscription: (reference) => api.get(`/subscriptions/verify/${reference}`),
+  getMySubscriptions: () => api.get('/subscriptions/me'),
 };
 
 // Admin endpoints

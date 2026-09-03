@@ -36,7 +36,7 @@ export const getProviders = async (req, res) => {
       };
     }
 
-    const providers = await prisma.provider.findMany({
+    const providersRaw = await prisma.provider.findMany({
       where,
       include: {
         user: {
@@ -57,6 +57,20 @@ export const getProviders = async (req, res) => {
       },
       orderBy: { trustScore: 'desc' }
     });
+
+    // Subscription boost: FEATURED ranks above PRO, PRO above FREE.
+    // Expired subscriptions count as FREE. Within each tier, trust order is preserved.
+    const now = new Date();
+    const tierRank = (p) => {
+      const active = p.subscriptionExpiresAt && p.subscriptionExpiresAt > now;
+      if (!active) return 0;
+      return p.subscriptionTier === 'FEATURED' ? 2 : p.subscriptionTier === 'PRO' ? 1 : 0;
+    };
+    const tierOf = (p) => (tierRank(p) ? p.subscriptionTier : 'FREE');
+    const providers = providersRaw
+      .map((p, i) => ({ p, rank: tierRank(p), i }))
+      .sort((a, b) => b.rank - a.rank || a.i - b.i)
+      .map(({ p }) => ({ ...p, effectiveTier: tierOf(p) }));
 
     res.json({
       success: true,

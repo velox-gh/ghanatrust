@@ -1,6 +1,6 @@
 
 import { Link } from 'react-router-dom';
-import { MapPin, ArrowRight, Briefcase, CheckCircle, Star } from '@phosphor-icons/react';
+import { MapPin, ArrowRight, Briefcase, CheckCircle, Star, Crown, Lightning } from '@phosphor-icons/react';
 import TrustBadge from './ui/TrustBadge';
 import Card from './ui/Card';
 import Button from './ui/Button';
@@ -11,17 +11,44 @@ const ProviderCard = ({ provider }) => {
   const primaryService = provider.services?.[0]?.service?.name || 'Professional Artisan';
   const reviewCount = provider.reviews?.length || provider.jobsCompleted || 0;
 
+  // Paid tier from the server (FEATURED > PRO > FREE); expired subs report FREE
+  const tier = provider.effectiveTier === 'FEATURED' || provider.effectiveTier === 'PRO' ? provider.effectiveTier : null;
+
   // Trust ladder: 3 = trade-certified with a proven track record (20+ jobs, 95%+ completion)
   const trustLevel = provider.skillsVerified && (provider.jobsCompleted || 0) >= 20 && (provider.completionRate || 0) >= 95
     ? 3
     : (provider.skillsVerified || provider.identityVerified) ? 2 : 1;
 
   return (
-    <Card hover padding="p-0" className="group relative flex flex-col justify-between overflow-hidden">
+    <Card
+      hover
+      padding="p-0"
+      className={`group relative flex flex-col justify-between overflow-hidden ${
+        tier === 'FEATURED' ? 'ring-2 ring-gold-300' : ''
+      }`}
+    >
       <div>
         {/* Top Header & Trust Status Badge */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
-          <TrustBadge level={trustLevel} size="sm" />
+        <div
+          className={`flex items-center justify-between border-b border-slate-100 p-4 ${
+            tier === 'FEATURED' ? 'bg-gold-50/70' : 'bg-slate-50'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <TrustBadge level={trustLevel} size="sm" />
+            {tier === 'FEATURED' && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-gold-300 bg-gold-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-gold-800">
+                <Crown aria-hidden="true" weight="fill" size={11} />
+                Featured
+              </span>
+            )}
+            {tier === 'PRO' && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                <Lightning aria-hidden="true" weight="fill" size={11} />
+                Pro
+              </span>
+            )}
+          </div>
           <span className="inline-flex items-center gap-1 rounded-full border border-gold-200 bg-gold-50 px-2.5 py-1 text-xs font-black text-gold-800">
             <Star aria-hidden="true" weight="fill" size={12} className="text-gold-400" />
             <span className="tabular-nums">{provider.trustScore ? provider.trustScore.toFixed(1) : '4.9'}</span>

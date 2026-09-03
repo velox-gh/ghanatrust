@@ -47,7 +47,8 @@ enum DisputeStatus {
 model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique
-  password     String
+  password     String?
+  googleId     String?  @unique
   firstName    String
   lastName     String
   phoneNumber  String?
@@ -87,6 +88,8 @@ model Provider {
   phoneVerified    Boolean  @default(false)
   skillsVerified   Boolean  @default(false)
   locationVerified Boolean  @default(false)
+  subscriptionTier      String    @default("FREE") // FREE | PRO | FEATURED
+  subscriptionExpiresAt DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -98,6 +101,7 @@ model Provider {
   bookings             Booking[]
   reviews              Review[]              @relation("ProviderReviews")
   verificationRequests VerificationRequest[]
+  subscriptions        Subscription[]
 
   @@map("providers")
 }
@@ -265,6 +269,9 @@ model Payment {
   status            String // "PENDING", "COMPLETED", "FAILED", "REFUNDED"
   transactionId     String?
   mobileMoneyNumber String?
+  platformFee       Float?  // commission kept by GhanaTrust
+  providerAmount    Float?  // amount - platformFee (due to provider)
+  payoutStatus      String? // "PENDING" | "PAID_OUT"
   paymentDate       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -273,6 +280,24 @@ model Payment {
   booking Booking @relation(fields: [bookingId], references: [id])
 
   @@map("payments")
+}
+
+model Subscription {
+  id            Int       @id @default(autoincrement())
+  providerId    Int
+  plan          String // PRO | FEATURED
+  amount        Float
+  status        String    @default("PENDING") // PENDING | ACTIVE | FAILED
+  transactionId String    @unique // Paystack reference
+  startedAt     DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  @@map("subscriptions")
 }
 
 model Review {

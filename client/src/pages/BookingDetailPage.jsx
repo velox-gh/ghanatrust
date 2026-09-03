@@ -108,7 +108,6 @@ const BookingDetailPage = () => {
   const [reviewComment, setReviewComment] = useState('');
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [momoNumber, setMomoNumber] = useState('');
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [completionPrice, setCompletionPrice] = useState('');
@@ -246,25 +245,15 @@ const BookingDetailPage = () => {
     setActionLoading('payment');
     setPaymentError('');
     try {
-      const res = await paymentAPI.createPayment({
-        bookingId: id,
-        amount: booking.price,
-        mobileMoneyNumber: momoNumber
-      });
+      // Backend computes the amount from the booking — never trusted from the client
+      const res = await paymentAPI.initializePayment(id);
       const data = res.data;
       if (!data.success) throw new Error(data.message);
 
-      setShowPaymentModal(false);
-      setFeedback({ tone: 'success', text: data.message || 'Payment initiated. Authorize the prompt on your phone.' });
-
-      // Since mock payment takes 3s to update DB, let's poll or just reload after 3.5s
-      setTimeout(() => {
-        fetchBooking();
-      }, 3500);
-
+      // Redirect to Paystack's secure checkout (MoMo / card)
+      window.location.href = data.authorizationUrl;
     } catch (err) {
-      setPaymentError(err.message || 'Failed to initiate payment.');
-    } finally {
+      setPaymentError(err.response?.data?.message || err.message || 'Failed to initiate payment.');
       setActionLoading('');
     }
   };
@@ -752,20 +741,13 @@ const BookingDetailPage = () => {
           <strong>{booking.provider?.user?.firstName}</strong> for the <strong>{booking.service?.name}</strong> service.
         </p>
         <form id="gt-payment-form" onSubmit={handlePaymentSubmit}>
-          <Field
-            label="Mobile Money Number"
-            name="momoNumber"
-            type="tel"
-            required
-            autoComplete="tel"
-            placeholder="e.g. 024XXXXXXX or 055XXXXXXX"
-            value={momoNumber}
-            onChange={(e) => setMomoNumber(e.target.value)}
-            hint="A payment prompt will be sent to this number. Please authorize the transaction on your phone."
-          />
+          <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-600">
+            You'll be redirected to <strong>Paystack</strong>, our secure payment partner, to approve this payment via
+            <strong> MTN MoMo, Telecel Cash, AT Money</strong> or card. Never share your PIN with anyone.
+          </p>
           {actionLoading === 'payment' && (
             <Alert tone="info" className="mt-3">
-              Processing your payment — approve the MoMo prompt on your phone.
+              Redirecting to secure checkout…
             </Alert>
           )}
           {paymentError && (

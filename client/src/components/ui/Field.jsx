@@ -53,7 +53,14 @@ export default function Field({
   if (as === 'select') {
     control = (
       <div className="relative">
-        <select id={inputId} required={required || undefined} className={`${controlClass} cursor-pointer appearance-none pr-10`}>
+        <select
+          id={inputId}
+          required={required || undefined}
+          className={`${controlClass} cursor-pointer appearance-none pr-10`}
+          aria-invalid={!!error || undefined}
+          aria-describedby={describedBy}
+          {...rest}
+        >
           {children ||
             options.map((opt) => {
               const value = typeof opt === 'object' ? opt.value : opt;

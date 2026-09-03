@@ -11,5 +11,11 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: ['.ngrok-free.app'],
+    // Same-origin API access: works on localhost, LAN IPs and ngrok tunnels alike —
+    // the browser always talks to whatever host served the page.
+    proxy: {
+      '/api': { target: 'http://localhost:5000', changeOrigin: true },
+      '/socket.io': { target: 'http://localhost:5000', ws: true, changeOrigin: true },
+    },
   },
 })

@@ -5,7 +5,7 @@ import prisma from '../config/database.js';
 import { sendEmail } from '../services/emailService.js';
 
 // Generate JWT
-const generateToken = (id) => {
+export const generateToken = (id) => {
   return jwt.sign({ id }, config.jwtSecret, {
     expiresIn: config.jwtExpire,
   });
@@ -121,6 +121,14 @@ export const login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
+      });
+    }
+
+    // Google-only accounts have no password — bcrypt.compare would throw on null
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'This account was created with Google. Please use "Sign in with Google".',
       });
     }
 
