@@ -61,6 +61,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Adopt a session minted by a flow other than the login form — currently the
+   * guest booking endpoint, which creates the customer and signs them in in one
+   * request so they can track the job they just booked.
+   */
+  const adoptSession = (token, adoptedUser) => {
+    localStorage.setItem('token', token);
+    setUser(adoptedUser);
+    setError(null);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -73,6 +84,7 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     logout,
+    adoptSession,
     isAuthenticated: !!user,
     isCustomer: user?.role === 'CUSTOMER',
     isProvider: user?.role === 'PROVIDER',

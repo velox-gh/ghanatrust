@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { ShieldCheck, MagnifyingGlass, Handshake, SquaresFour, Scales, SignOut, List, X } from '@phosphor-icons/react';
+import { ShieldCheck, MagnifyingGlass, Handshake, SquaresFour, Scales, SignOut, List, X, Info } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../context/TourContext';
 
+// Home IS the marketplace feed now, so "Browse" and "Home" would be the same
+// link. The second slot goes to the story page the old homepage became.
 const NAV_LINKS = [
-  { to: '/', label: 'Home', icon: ShieldCheck, tourClass: 'tour-home', end: true },
-  { to: '/services', label: 'Find Services', icon: MagnifyingGlass, tourClass: 'tour-find-services', end: false },
+  { to: '/', label: 'Browse', icon: MagnifyingGlass, tourClass: 'tour-find-services', end: true },
+  { to: '/how-it-works', label: 'How It Works', icon: Info, tourClass: 'tour-home', end: false },
 ];
 
 const Navbar = () => {
@@ -35,7 +37,7 @@ const Navbar = () => {
   };
 
   const handleHowTrustWorks = () => {
-    if (window.location.pathname !== '/') {
+    if (location.pathname !== '/') {
       navigate('/');
       setTimeout(startTour, 500); // Wait for navigation
     } else {
@@ -179,10 +181,10 @@ const Navbar = () => {
       {mobileMenuOpen && (
         <div id="mobile-menu" className="space-y-1 border-b border-slate-200 bg-white px-4 py-4 md:hidden">
           <NavLink to="/" end className={({ isActive }) => `${mobileLinkClass} ${isActive ? 'bg-trust-50 text-trust-700' : ''}`}>
-            <ShieldCheck aria-hidden="true" size={17} /> Home
+            <MagnifyingGlass aria-hidden="true" size={17} /> Browse
           </NavLink>
-          <NavLink to="/services" className={({ isActive }) => `${mobileLinkClass} ${isActive ? 'bg-trust-50 text-trust-700' : ''}`}>
-            <MagnifyingGlass aria-hidden="true" size={17} /> Find Services
+          <NavLink to="/how-it-works" className={({ isActive }) => `${mobileLinkClass} ${isActive ? 'bg-trust-50 text-trust-700' : ''}`}>
+            <Info aria-hidden="true" size={17} /> How It Works
           </NavLink>
           <button
             type="button"

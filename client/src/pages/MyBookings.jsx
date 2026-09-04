@@ -214,7 +214,7 @@ const MyBookings = () => {
                 ? 'Browse verified service providers to request your first job.'
                 : 'Try a different filter above.'
             }
-            action={filterStatus === 'ALL' ? { label: 'Find a Service Pro', to: '/services' } : undefined}
+            action={filterStatus === 'ALL' ? { label: 'Find a Service Pro', to: '/' } : undefined}
           />
         ) : (
           <div className="space-y-4">

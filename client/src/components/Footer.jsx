@@ -34,11 +34,11 @@ const Footer = () => {
           <div>
             <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-white">Explore Services</h3>
             <ul className="space-y-2.5 text-sm text-slate-400">
-              <li><Link to="/services" className="transition hover:text-trust-400">Electrical &amp; Solar Systems</Link></li>
-              <li><Link to="/services" className="transition hover:text-trust-400">Plumbing &amp; Borehole Repair</Link></li>
-              <li><Link to="/services" className="transition hover:text-trust-400">Air Conditioning &amp; Fridge Repair</Link></li>
-              <li><Link to="/services" className="transition hover:text-trust-400">Carpentry &amp; Roofing</Link></li>
-              <li><Link to="/services" className="transition hover:text-trust-400">Painting &amp; Wall Finishes</Link></li>
+              <li><Link to="/?search=Electrical" className="transition hover:text-trust-400">Electrical &amp; Solar Systems</Link></li>
+              <li><Link to="/?search=Plumbing" className="transition hover:text-trust-400">Plumbing &amp; Borehole Repair</Link></li>
+              <li><Link to="/?search=Air+Conditioning" className="transition hover:text-trust-400">Air Conditioning &amp; Fridge Repair</Link></li>
+              <li><Link to="/?search=Carpentry" className="transition hover:text-trust-400">Carpentry &amp; Roofing</Link></li>
+              <li><Link to="/?search=Painting" className="transition hover:text-trust-400">Painting &amp; Wall Finishes</Link></li>
             </ul>
           </div>
 

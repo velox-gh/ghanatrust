@@ -5,6 +5,10 @@ import { initSocket } from './services/socketService.js';
 
 const PORT = config.port || 5000;
 
+// Behind ngrok / a reverse proxy, req.ip must resolve to the real client rather
+// than the proxy — otherwise every request shares one rate-limit bucket.
+app.set('trust proxy', 1);
+
 // Create HTTP server
 const server = http.createServer(app);
 

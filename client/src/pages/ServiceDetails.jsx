@@ -38,7 +38,7 @@ const ServiceDetails = () => {
       <div className="flex min-h-screen items-center justify-center bg-navy-50">
         <div className="text-center">
           <h2 className="text-xl font-bold text-navy-900">Service Not Found</h2>
-          <Button to="/services" variant="secondary" size="md" className="mt-4">
+          <Button to="/" variant="secondary" size="md" className="mt-4">
             <ArrowLeft aria-hidden="true" weight="bold" size={14} />
             Browse All Services
           </Button>
@@ -52,7 +52,7 @@ const ServiceDetails = () => {
   return (
     <div className="min-h-screen bg-navy-50 py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Button to="/services" variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Button to="/" variant="ghost" size="sm" className="mb-4 -ml-2">
           <ArrowLeft aria-hidden="true" weight="bold" size={14} />
           All Services
         </Button>
@@ -84,7 +84,7 @@ const ServiceDetails = () => {
             icon={ getCategoryIcon(service.category?.name) }
             title="No Providers Yet"
             body="No verified professionals offer this specific service yet. Check back soon or browse similar services."
-            action={{ label: 'Browse All Services', to: '/services', variant: 'secondary' }}
+            action={{ label: 'Browse All Services', to: '/', variant: 'secondary' }}
           />
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">

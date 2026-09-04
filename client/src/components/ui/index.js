@@ -1,4 +1,5 @@
 export { default as Button } from './Button';
+export { default as CalligraphyWord } from './CalligraphyWord';
 export { default as Card } from './Card';
 export { default as StatusBadge } from './StatusBadge';
 export { STATUS_TOKENS, resolveStatus, humaniseStatus } from './statusTokens';

@@ -78,7 +78,7 @@ const Payments = () => {
             icon={Receipt}
             title="No Transactions Yet"
             body="Your mobile money payments and service earnings will appear here once you transact."
-            action={role === 'CUSTOMER' ? { label: 'Browse Services', to: '/services' } : undefined}
+            action={role === 'CUSTOMER' ? { label: 'Browse Services', to: '/' } : undefined}
           />
         ) : (
           <Card padding="p-0" className="overflow-hidden">

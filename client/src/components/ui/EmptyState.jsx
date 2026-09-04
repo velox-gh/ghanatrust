@@ -4,7 +4,7 @@ import Button from './Button';
  * Consistent empty state with optional CTA.
  * <EmptyState icon={CalendarBlank} title="No bookings yet"
  *   body="Browse verified professionals to get started."
- *   action={{ label: 'Browse Services', to: '/services' }} />
+ *   action={{ label: 'Browse Services', to: '/' }} />
  */
 export default function EmptyState({ icon: Icon, title, body, action, size = 'md', className = '' }) {
   const pad = size === 'sm' ? 'px-6 py-10' : 'px-6 py-16';

@@ -1,66 +1,146 @@
 import prisma from '../config/database.js';
 import { sendBookingConfirmation } from '../services/emailService.js';
 import { getIO } from '../services/socketService.js';
+import { findOrCreateGuestCustomer } from '../services/guestService.js';
+import { generateToken } from './authController.js';
+
+/**
+ * Shared write path for both authenticated and guest bookings. Everything after
+ * the customer is identified is identical, so it lives here rather than being
+ * duplicated across the two entry points.
+ */
+const persistBooking = async ({ customerId, providerId, serviceId, locationId, scheduledDate, scheduledEndDate, description, price, address }) => {
+  const booking = await prisma.booking.create({
+    data: {
+      customerId,
+      providerId: parseInt(providerId),
+      serviceId: parseInt(serviceId),
+      locationId: locationId ? parseInt(locationId) : null,
+      scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+      scheduledEndDate: scheduledEndDate ? new Date(scheduledEndDate) : null,
+      description: description || null,
+      address: address || null,
+      price: price ? parseFloat(price) : null,
+      status: 'REQUESTED',
+    },
+    include: {
+      provider: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true, phoneNumber: true } } } },
+      service: true,
+      location: true,
+      customer: { select: { id: true, firstName: true, lastName: true, email: true, phoneNumber: true } },
+    },
+  });
+
+  // Notification and email are best-effort: a failure in either must not lose
+  // the booking the customer just made.
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: booking.provider.userId,
+        title: 'New Job Request 📋',
+        message: `${booking.customer.firstName} ${booking.customer.lastName} has requested your "${booking.service.name}" service.`,
+        type: 'BOOKING_REQUEST',
+        link: `/my-bookings/${booking.id}`,
+      },
+    });
+  } catch (err) {
+    console.error('Booking notification failed:', err);
+  }
+
+  try {
+    const providerUser = booking.provider.user;
+    if (providerUser?.email) {
+      await sendBookingConfirmation(booking, providerUser.email, providerUser.firstName);
+    }
+  } catch (err) {
+    console.error('Booking email failed:', err);
+  }
+
+  return booking;
+};
+
+/** Fields every booking needs, whoever is making it. */
+const validateBookingFields = ({ providerId, serviceId, scheduledDate, address }) => {
+  if (!providerId || !serviceId) return 'Provider and service are required';
+  if (!scheduledDate) return 'A preferred date is required';
+  if (!address || !String(address).trim()) return 'The job address is required';
+  return null;
+};
 
 // @desc    Create new booking request
 // @route   POST /api/bookings
 // @access  Private (Customer)
 export const createBooking = async (req, res) => {
   try {
-    const { providerId, serviceId, locationId, scheduledDate, scheduledEndDate, description, price, address } = req.body;
-    const customerId = req.user.id;
-
-    if (!providerId || !serviceId) {
-      return res.status(400).json({ success: false, message: 'Provider and service are required' });
+    const invalid = validateBookingFields(req.body);
+    if (invalid) {
+      return res.status(400).json({ success: false, message: invalid });
     }
 
-    const booking = await prisma.booking.create({
-      data: {
-        customerId,
-        providerId: parseInt(providerId),
-        serviceId: parseInt(serviceId),
-        locationId: locationId ? parseInt(locationId) : null,
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
-        scheduledEndDate: scheduledEndDate ? new Date(scheduledEndDate) : null,
-        description: description || null,
-        price: price ? parseFloat(price) : null,
-        status: 'REQUESTED',
-      },
-      include: {
-        provider: { include: { user: { select: { firstName: true, lastName: true, email: true, phoneNumber: true } } } },
-        service: true,
-        location: true,
-        customer: { select: { id: true, firstName: true, lastName: true, email: true, phoneNumber: true } },
-      },
-    });
-
-    // Create notification for provider
-    try {
-      await prisma.notification.create({
-        data: {
-          userId: booking.provider.user.id || booking.provider.userId,
-          title: 'New Job Request 📋',
-          message: `${booking.customer.firstName} ${booking.customer.lastName} has requested your "${booking.service.name}" service.`,
-          type: 'BOOKING_REQUEST',
-          link: `/my-bookings/${booking.id}`,
-        },
-      });
-    } catch (_) { /* notification failure should not block booking */ }
-
-    // Send booking confirmation email
-    try {
-      const providerUser = await prisma.user.findUnique({
-        where: { id: booking.provider.userId },
-        select: { email: true, firstName: true },
-      });
-      if (providerUser?.email) {
-        await sendBookingConfirmation(booking, providerUser.email, providerUser.firstName);
-      }
-    } catch (_) { /* email failure should not block booking */ }
-
+    const booking = await persistBooking({ ...req.body, customerId: req.user.id });
     res.status(201).json({ success: true, booking });
   } catch (error) {
     console.error('Error creating booking:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Create a booking without an existing account
+// @route   POST /api/bookings/guest
+// @access  Public (rate limited)
+export const createGuestBooking = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phoneNumber } = req.body;
+
+    if (!firstName?.trim() || !lastName?.trim() || !email?.trim() || !phoneNumber?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Your name, email and phone number are required so the provider can reach you',
+      });
+    }
+
+    const invalid = validateBookingFields(req.body);
+    if (invalid) {
+      return res.status(400).json({ success: false, message: invalid });
+    }
+
+    const { user, created } = await findOrCreateGuestCustomer({
+      email,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phoneNumber: phoneNumber.trim(),
+    });
+
+    const booking = await persistBooking({ ...req.body, customerId: user.id });
+
+    // The account is unclaimed by construction (findOrCreateGuestCustomer
+    // refuses claimed ones), so signing them in exposes nothing they didn't
+    // just create. It lets them track the job without a signup step.
+    const token = generateToken(user.id);
+
+    res.status(201).json({
+      success: true,
+      booking,
+      token,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
+      isNewAccount: created,
+    });
+  } catch (error) {
+    if (error.code === 'ACCOUNT_EXISTS') {
+      return res.status(error.statusCode).json({
+        success: false,
+        code: 'ACCOUNT_EXISTS',
+        message: error.message,
+      });
+    }
+    console.error('Error creating guest booking:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

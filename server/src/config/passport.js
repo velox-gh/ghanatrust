@@ -2,9 +2,19 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import prisma from './database.js';
 
+// Google sign-in is optional. passport-oauth2 throws on construction when
+// clientID is missing, which took the whole server down on any install that had
+// not set up Google — so the strategy is only registered when it is configured.
+export const googleEnabled = Boolean(
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  process.env.GOOGLE_CALLBACK_URL
+);
+
 // Find-or-create logic: Google ID first, then link by verified email
-passport.use(
-  new GoogleStrategy(
+if (googleEnabled) {
+  passport.use(
+    new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -52,7 +62,12 @@ passport.use(
         return done(err, null);
       }
     }
-  )
-);
+    )
+  );
+} else {
+  console.warn(
+    '⚠  Google sign-in disabled: set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_CALLBACK_URL to enable it.'
+  );
+}
 
 export default passport;

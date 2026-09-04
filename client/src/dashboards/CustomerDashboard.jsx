@@ -54,7 +54,7 @@ const CustomerDashboard = () => {
               Find verified, trusted local artisans &amp; service professionals across Ghana.
             </p>
           </div>
-          <Button to="/services" variant="onDarkSolid" size="lg" className="whitespace-nowrap">
+          <Button to="/" variant="onDarkSolid" size="lg" className="whitespace-nowrap">
             Find a Service Pro
           </Button>
         </div>
@@ -63,7 +63,7 @@ const CustomerDashboard = () => {
       {/* ── Action Cards ────────────────────────────────────────────────── */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
         <Link
-          to="/services"
+          to="/"
           className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card transition hover:border-trust-300 hover:shadow-lift"
         >
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-transform group-hover:scale-110 motion-reduce:group-hover:scale-100">
@@ -134,7 +134,7 @@ const CustomerDashboard = () => {
                   icon={CalendarBlank}
                   title="No Bookings Yet"
                   body="Browse verified professionals and request your first job."
-                  action={{ label: 'Browse Services', to: '/services' }}
+                  action={{ label: 'Browse Services', to: '/' }}
                 />
               ) : (
                 <div className="space-y-3">
@@ -228,7 +228,7 @@ const CustomerDashboard = () => {
             </h2>
             <div className="space-y-2">
               <Link
-                to="/services"
+                to="/"
                 className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-trust-200 hover:bg-trust-50/50"
               >
                 <MagnifyingGlass aria-hidden="true" weight="duotone" size={20} className="shrink-0 text-slate-400 transition group-hover:text-trust-600" />

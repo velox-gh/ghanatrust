@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { config } from './config/environment.js';
 import session from 'express-session';
 import passport from './config/passport.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+import { apiLimiter } from './middleware/rateLimitMiddleware.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
@@ -19,6 +21,14 @@ import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 
 const app = express();
+
+// Security headers. crossOriginResourcePolicy is relaxed because the SPA is
+// served from a different origin in development; CSP is left to the static
+// host that serves the built client rather than set on the JSON API.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 // Middleware
 const allowedOrigins = [
@@ -62,12 +72,20 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session is used ONLY for the Google OAuth handshake state — login itself is JWT
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'lax' },
+  cookie: { httpOnly: true, sameSite: 'lax', secure: config.isProduction },
 }));
 app.use(passport.initialize());
+
+// Broad ceiling across the API; auth and payment routes add tighter limits.
+// Paystack's webhook is exempt — it is authenticated by HMAC signature, and
+// throttling a retry storm from Paystack would drop real payment events.
+app.use('/api', (req, res, next) => {
+  if (req.path === '/payments/webhook') return next();
+  return apiLimiter(req, res, next);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
