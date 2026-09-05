@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import prisma from '../config/database.js';
 import { initializeTransaction, verifyTransaction, isConfigured, resolveClientBase } from '../services/paystackService.js';
 import { settleSubscription } from './subscriptionController.js';
+import { sendPaymentReceipt } from '../services/emailService.js';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -11,7 +12,14 @@ const settlePayment = async (reference) => {
   const payment = await prisma.payment.findFirst({
     where: { transactionId: reference },
     orderBy: { id: 'desc' },
-    include: { booking: { include: { provider: true } } },
+    include: {
+      booking: {
+        include: {
+          provider: true,
+          customer: { select: { id: true, email: true, firstName: true } },
+        },
+      },
+    },
   });
   if (!payment || payment.status === 'COMPLETED') return payment;
 
@@ -43,6 +51,16 @@ const settlePayment = async (reference) => {
       },
     }),
   ]);
+
+  // Email receipt to the customer (never block settlement on email failure)
+  try {
+    if (payment.booking.customer?.email) {
+      await sendPaymentReceipt(
+        { email: payment.booking.customer.email, firstName: payment.booking.customer.firstName },
+        { amount: payment.amount, bookingId: payment.bookingId, transactionId: reference },
+      );
+    }
+  } catch (_) {}
 
   return prisma.payment.findFirst({ where: { transactionId: reference }, orderBy: { id: 'desc' } });
 };

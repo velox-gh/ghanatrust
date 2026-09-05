@@ -1,9 +1,10 @@
 
 import { Link } from 'react-router-dom';
-import { MapPin, ArrowRight, Briefcase, CheckCircle, Star, Crown, Lightning } from '@phosphor-icons/react';
+import { MapPin, ArrowRight, Briefcase, CheckCircle, Star, Crown, Lightning, BookmarkSimple } from '@phosphor-icons/react';
 import TrustBadge from './ui/TrustBadge';
 import Card from './ui/Card';
 import Button from './ui/Button';
+import useSavedProviders from '../hooks/useSavedProviders';
 
 const ProviderCard = ({ provider }) => {
   const user = provider.user || {};
@@ -13,6 +14,8 @@ const ProviderCard = ({ provider }) => {
 
   // Paid tier from the server (FEATURED > PRO > FREE); expired subs report FREE
   const tier = provider.effectiveTier === 'FEATURED' || provider.effectiveTier === 'PRO' ? provider.effectiveTier : null;
+  const { isSaved, toggle, isCustomer } = useSavedProviders();
+  const saved = isCustomer && isSaved(provider.id);
 
   // Trust ladder: 3 = trade-certified with a proven track record (20+ jobs, 95%+ completion)
   const trustLevel = provider.skillsVerified && (provider.jobsCompleted || 0) >= 20 && (provider.completionRate || 0) >= 95
@@ -35,6 +38,22 @@ const ProviderCard = ({ provider }) => {
           }`}
         >
           <div className="flex items-center gap-2">
+            {isCustomer && (
+              <button
+                type="button"
+                onClick={() => toggle(provider.id)}
+                aria-pressed={saved}
+                aria-label={saved ? 'Remove from saved' : 'Save this provider'}
+                title={saved ? 'Remove from saved' : 'Save for later'}
+                className={`cursor-pointer rounded-full border p-1.5 transition ${
+                  saved
+                    ? 'border-trust-300 bg-trust-50 text-trust-600'
+                    : 'border-slate-200 bg-white text-slate-400 hover:border-trust-300 hover:text-trust-600'
+                }`}
+              >
+                <BookmarkSimple aria-hidden="true" size={13} weight={saved ? 'fill' : 'regular'} />
+              </button>
+            )}
             <TrustBadge level={trustLevel} size="sm" />
             {tier === 'FEATURED' && (
               <span className="inline-flex items-center gap-1 rounded-full border border-gold-300 bg-gold-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-gold-800">

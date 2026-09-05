@@ -33,6 +33,10 @@ export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
   getMe: () => api.get('/auth/me'),
+  verifyEmail: (token) => api.get('/auth/verify-email', { params: { token } }),
+  resendVerification: () => api.post('/auth/resend-verification'),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
 };
 
 // Service & Category endpoints
@@ -49,6 +53,7 @@ export const providerAPI = {
   getProviderById: (id) => api.get(`/providers/${id}`),
   submitVerification: (data) => api.post('/providers/verifications', data),
   getMyVerifications: () => api.get('/providers/verifications/me'),
+  getMyStats: () => api.get('/providers/me/stats'),
   addService: (data) => api.post('/providers/services', data),
   removeService: (id) => api.delete(`/providers/services/${id}`),
 };
@@ -107,6 +112,21 @@ export const disputeAPI = {
   uploadEvidence: (id, data) => api.post(`/disputes/${id}/evidence`, data),
   investigateDispute: (id, data) => api.patch(`/disputes/${id}/investigate`, data),
   resolveDispute: (id, data) => api.patch(`/disputes/${id}/resolve`, data),
+};
+
+// Saved providers (customer bookmarks)
+export const savedAPI = {
+  list: () => api.get('/users/saved-providers'),
+  save: (providerId) => api.post(`/users/saved-providers/${providerId}`),
+  unsave: (providerId) => api.delete(`/users/saved-providers/${providerId}`),
+  savedIds: (providerIds) => api.get('/users/saved-providers/ids', { params: { providerIds: providerIds.join(',') } }),
+};
+
+// Notifications
+export const notificationAPI = {
+  list: (params) => api.get('/notifications', { params }),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.post('/notifications/read-all'),
 };
 
 export default api;

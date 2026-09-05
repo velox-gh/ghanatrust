@@ -303,6 +303,8 @@ const BookingDetailPage = () => {
   const isCustomer = role === 'CUSTOMER';
   const canCancel = isCustomer && ['REQUESTED', 'ACCEPTED', 'PRICE_AGREED', 'SCHEDULED'].includes(s);
   const canAccept = isProvider && s === 'REQUESTED';
+  // Providers can walk away from a request only before accepting — after that they're committed
+  const canDecline = isProvider && s === 'REQUESTED';
   const canSetPrice = isProvider && s === 'ACCEPTED';
   const canStart = isProvider && s === 'PRICE_AGREED';
   const canComplete = isProvider && s === 'IN_PROGRESS';
@@ -541,6 +543,11 @@ const BookingDetailPage = () => {
                 <CheckCircle aria-hidden="true" weight="bold" size={15} /> Accept Job
               </Button>
             )}
+            {canDecline && (
+              <Button variant="danger" onClick={() => setShowCancelModal(true)} disabled={!!actionLoading}>
+                <XCircle aria-hidden="true" weight="bold" size={15} /> Decline Request
+              </Button>
+            )}
             {canSetPrice && (
               <Button onClick={() => handleAction('agreePrice')} loading={actionLoading === 'agreePrice'} disabled={!!actionLoading}>
                 <CurrencyCircleDollar aria-hidden="true" weight="bold" size={15} /> Set Agreed Price
@@ -598,16 +605,16 @@ const BookingDetailPage = () => {
         </Card>
       </div>
 
-      {/* Cancel Modal */}
+      {/* Cancel / Decline Modal */}
       <Modal
         open={showCancelModal}
         onClose={() => setShowCancelModal(false)}
-        title="Cancel This Booking?"
+        title={isProvider ? 'Decline This Request?' : 'Cancel This Booking?'}
         size="md"
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowCancelModal(false)} disabled={!!actionLoading} autoFocus>
-              Keep Booking
+              {isProvider ? 'Keep Request' : 'Keep Booking'}
             </Button>
             <Button
               onClick={() => handleAction('cancel')}
@@ -615,15 +622,22 @@ const BookingDetailPage = () => {
               disabled={!!actionLoading}
               className="!border-red-600 !bg-red-600 !text-white hover:!bg-red-700"
             >
-              {actionLoading === 'cancel' ? 'Cancelling…' : 'Yes, Cancel Booking'}
+              {actionLoading === 'cancel' ? 'Cancelling…' : isProvider ? 'Yes, Decline' : 'Yes, Cancel Booking'}
             </Button>
           </>
         }
       >
-        <p className="text-sm leading-relaxed text-slate-600">
-          Are you sure you want to cancel your <strong>{booking.service?.name}</strong> booking?
-          This action cannot be undone.
-        </p>
+        {isProvider ? (
+          <p className="text-sm leading-relaxed text-slate-600">
+            Declining lets the customer know you're unavailable for this <strong>{booking.service?.name}</strong> job.
+            You can only decline <strong>before accepting</strong> — once you accept, the job is yours to complete.
+          </p>
+        ) : (
+          <p className="text-sm leading-relaxed text-slate-600">
+            Are you sure you want to cancel your <strong>{booking.service?.name}</strong> booking?
+            This action cannot be undone.
+          </p>
+        )}
       </Modal>
 
       {/* Review Modal */}

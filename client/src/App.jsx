@@ -25,6 +25,13 @@ import Payments from './pages/Payments';
 import NotFound from './pages/NotFound';
 import DisputesList from './pages/DisputesList';
 import DisputeDetail from './pages/DisputeDetail';
+import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import SavedProviders from './pages/SavedProviders';
+import Notifications from './pages/Notifications';
+import About from './pages/About';
+import Help from './pages/Help';
 
 // Dashboards
 import Dashboard from './dashboards/Dashboard';
@@ -58,6 +65,13 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/disputes" element={<DisputesList />} />
                 <Route path="/disputes/:id" element={<DisputeDetail />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/saved" element={<SavedProviders />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/help" element={<Help />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

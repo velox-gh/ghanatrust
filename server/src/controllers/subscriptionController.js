@@ -1,5 +1,6 @@
 import prisma from '../config/database.js';
 import { initializeTransaction, verifyTransaction, isConfigured, PLAN_PRICES, resolveClientBase } from '../services/paystackService.js';
+import { sendSubscriptionActivated } from '../services/emailService.js';
 
 const PLAN_DURATION_DAYS = 30;
 
@@ -37,6 +38,17 @@ export const settleSubscription = async (reference) => {
       },
     }),
   ]);
+
+  // Email confirmation (never block settlement)
+  try {
+    const providerUser = await prisma.user.findUnique({
+      where: { id: subscription.provider.userId },
+      select: { email: true, firstName: true },
+    });
+    if (providerUser?.email) {
+      await sendSubscriptionActivated(providerUser, subscription.plan, expiresAt);
+    }
+  } catch (_) {}
 
   return prisma.subscription.findUnique({ where: { transactionId: reference } });
 };

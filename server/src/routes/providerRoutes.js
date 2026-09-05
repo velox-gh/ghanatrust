@@ -1,11 +1,12 @@
 import express from 'express';
-import { 
-  getProviders, 
-  getProviderById, 
-  submitVerification, 
+import {
+  getProviders,
+  getProviderById,
+  submitVerification,
   getMyVerifications,
   addProviderService,
-  removeProviderService
+  removeProviderService,
+  getMyStats,
 } from '../controllers/providerController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 import { cacheRoute } from '../middleware/cacheMiddleware.js';
@@ -15,6 +16,7 @@ const router = express.Router();
 router.get('/', cacheRoute(120), getProviders);
 router.post('/verifications', protect, authorize('PROVIDER'), submitVerification);
 router.get('/verifications/me', protect, authorize('PROVIDER'), getMyVerifications);
+router.get('/me/stats', protect, authorize('PROVIDER'), getMyStats);
 
 // Services management
 router.post('/services', protect, authorize('PROVIDER'), addProviderService);

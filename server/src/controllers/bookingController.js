@@ -1,5 +1,9 @@
 import prisma from '../config/database.js';
-import { sendBookingConfirmation } from '../services/emailService.js';
+import {
+  sendBookingRequestToProvider,
+  sendBookingStatusToCustomer,
+  sendReviewPrompt,
+} from '../services/emailService.js';
 import { getIO } from '../services/socketService.js';
 
 // @desc    Create new booking request
@@ -54,7 +58,7 @@ export const createBooking = async (req, res) => {
         select: { email: true, firstName: true },
       });
       if (providerUser?.email) {
-        await sendBookingConfirmation(booking, providerUser.email, providerUser.firstName);
+        await sendBookingRequestToProvider(booking, providerUser.email, providerUser.firstName);
       }
     } catch (_) { /* email failure should not block booking */ }
 
@@ -171,7 +175,7 @@ export const updateBookingStatus = async (req, res) => {
       where: { id: bookingId },
       include: {
         provider: true,
-        customer: { select: { id: true, firstName: true, lastName: true } },
+        customer: { select: { id: true, firstName: true, lastName: true, email: true } },
         service: true,
       },
     });
@@ -245,6 +249,15 @@ export const updateBookingStatus = async (req, res) => {
             link: `/my-bookings/${bookingId}`,
           },
         });
+        // Email the customer the status update
+        if (booking.customer.email) {
+          const action = status === 'ACCEPTED' ? 'accepted' : status === 'SCHEDULED' ? 'scheduled' : 'started';
+          await sendBookingStatusToCustomer(
+            { email: booking.customer.email, firstName: booking.customer.firstName },
+            updated,
+            action,
+          );
+        }
       }
     } catch (_) {}
 
@@ -365,6 +378,17 @@ export const completeBooking = async (req, res) => {
           link: `/my-bookings/${bookingId}`,
         },
       });
+      // Email the customer a review prompt
+      const customerUser = await prisma.user.findUnique({
+        where: { id: booking.customer.id },
+        select: { email: true, firstName: true },
+      });
+      if (customerUser?.email) {
+        await sendReviewPrompt(
+          { ...customerUser, firstName: customerUser.firstName },
+          { ...updatedBooking, provider: booking.provider },
+        );
+      }
     } catch (_) {}
 
     res.json({ success: true, booking: updatedBooking });
@@ -376,7 +400,7 @@ export const completeBooking = async (req, res) => {
 
 // @desc    Cancel a booking
 // @route   PATCH /api/bookings/:id/cancel
-// @access  Private (Customer who owns it, or Admin)
+// @access  Private (Customer who owns it, Admin, or Provider while still REQUESTED)
 export const cancelBooking = async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id);
@@ -399,18 +423,30 @@ export const cancelBooking = async (req, res) => {
 
     const isCustomer = booking.customerId === userId;
     const isAdmin = role === 'ADMIN';
+    const isAssignedProvider = booking.provider.userId === userId;
 
-    if (!isCustomer && !isAdmin) {
-      return res.status(403).json({ success: false, message: 'Only the booking customer or admin can cancel' });
+    if (!isCustomer && !isAdmin && !isAssignedProvider) {
+      return res.status(403).json({ success: false, message: 'Only the booking customer, the assigned provider, or admin can cancel' });
     }
 
-    // Can only cancel if not already completed or paid
-    const cancellableStatuses = ['REQUESTED', 'ACCEPTED', 'SCHEDULED'];
-    if (!cancellableStatuses.includes(booking.status)) {
+    // Providers may decline a request only at the very start — before accepting.
+    // Once they've accepted, they're committed and only the customer or admin can cancel.
+    if (isAssignedProvider && !isCustomer && !isAdmin && booking.status !== 'REQUESTED') {
       return res.status(400).json({
         success: false,
-        message: `Cannot cancel a booking with status: ${booking.status}`,
+        message: 'You have accepted this job and can no longer cancel it. Contact the customer to arrange any changes.',
       });
+    }
+
+    // Customer/admin rules: can only cancel if not already completed or paid
+    if (!isAssignedProvider || isCustomer || isAdmin) {
+      const cancellableStatuses = ['REQUESTED', 'ACCEPTED', 'SCHEDULED'];
+      if (!cancellableStatuses.includes(booking.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot cancel a booking with status: ${booking.status}`,
+        });
+      }
     }
 
     const updated = await prisma.booking.update({
@@ -425,13 +461,19 @@ export const cancelBooking = async (req, res) => {
       },
     });
 
-    // Notify provider
+    // Notify the OTHER party (provider cancels → customer; customer/admin cancels → provider)
     try {
+      const recipientId = isAssignedProvider && !isCustomer && !isAdmin
+        ? booking.customerId
+        : booking.provider.userId;
+      const message = isAssignedProvider && !isCustomer && !isAdmin
+        ? `${booking.provider.user.firstName} ${booking.provider.user.lastName} is unavailable for your "${booking.service.name}" request.${reason ? ` Reason: ${reason}` : ''}`
+        : `${booking.customer.firstName} ${booking.customer.lastName} cancelled the "${booking.service.name}" booking.${reason ? ` Reason: ${reason}` : ''}`;
       await prisma.notification.create({
         data: {
-          userId: booking.provider.userId,
+          userId: recipientId,
           title: 'Booking Cancelled ❌',
-          message: `${booking.customer.firstName} ${booking.customer.lastName} cancelled the "${booking.service.name}" booking.${reason ? ` Reason: ${reason}` : ''}`,
+          message,
           type: 'BOOKING_CANCELLED',
           link: `/my-bookings/${bookingId}`,
         },

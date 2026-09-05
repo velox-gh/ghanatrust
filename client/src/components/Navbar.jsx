@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { ShieldCheck, MagnifyingGlass, Handshake, SquaresFour, Scales, SignOut, List, X } from '@phosphor-icons/react';
+import { ShieldCheck, MagnifyingGlass, Handshake, SquaresFour, Scales, SignOut, List, X, Bell, BookmarkSimple } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../context/TourContext';
+import { notificationAPI, authAPI } from '../services/api';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: ShieldCheck, tourClass: 'tour-home', end: true },
@@ -20,6 +21,23 @@ const Navbar = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Unread notification badge — refresh on navigation + every 60s
+  const isCustomer = user?.role === 'CUSTOMER';
+  const [unread, setUnread] = useState(0);
+  const [unreadMsg, setUnreadMsg] = useState('');
+  const refreshUnread = useCallback(() => {
+    if (!isAuthenticated) return;
+    notificationAPI
+      .list({ unreadOnly: 'true', limit: 1 })
+      .then((res) => setUnread(res.data.unreadCount || 0))
+      .catch(() => {});
+  }, [isAuthenticated]);
+  useEffect(() => {
+    refreshUnread();
+    const t = setInterval(refreshUnread, 60000);
+    return () => clearInterval(t);
+  }, [refreshUnread, location.pathname]);
 
   // Escape closes the mobile menu
   useEffect(() => {
@@ -48,6 +66,29 @@ const Navbar = () => {
 
   return (
     <header className="glass-nav sticky top-0 z-50 shadow-sm">
+      {/* Email verification nag */}
+      {isAuthenticated && user && user.emailVerified === false && (
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center sm:px-6 lg:px-8">
+            <p className="text-xs font-semibold text-amber-800">
+              Please verify your email address to unlock the full experience.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await authAPI.resendVerification();
+                  setUnreadMsg('Verification email sent — check your inbox.');
+                } catch { /* ignore */ }
+              }}
+              className="cursor-pointer rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100"
+            >
+              Resend link
+            </button>
+            {unreadMsg && <span className="text-[11px] font-semibold text-trust-700">{unreadMsg}</span>}
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           {/* Logo & Ghana Trust Badge */}
@@ -106,6 +147,29 @@ const Navbar = () => {
           <div className="hidden items-center gap-3 md:flex">
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
+                {isCustomer && (
+                  <Link
+                    to="/saved"
+                    aria-label="Saved professionals"
+                    title="Saved professionals"
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+                  >
+                    <BookmarkSimple aria-hidden="true" size={15} />
+                  </Link>
+                )}
+                <Link
+                  to="/notifications"
+                  aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
+                  title="Notifications"
+                  className="relative flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+                >
+                  <Bell aria-hidden="true" size={15} />
+                  {unread > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white">
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   to="/dashboard"
                   className="tour-dashboard flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
@@ -197,6 +261,18 @@ const Navbar = () => {
 
           {isAuthenticated ? (
             <>
+              {isCustomer && (
+                <NavLink to="/saved" className={({ isActive }) => `${mobileLinkClass} ${isActive ? 'bg-trust-50 text-trust-700' : ''}`}>
+                  <BookmarkSimple aria-hidden="true" size={17} /> Saved Pros
+                </NavLink>
+              )}
+              <NavLink to="/notifications" className={({ isActive }) => `${mobileLinkClass} ${isActive ? 'bg-trust-50 text-trust-700' : ''}`}>
+                <span className="relative">
+                  <Bell aria-hidden="true" size={17} />
+                  {unread > 0 && <span className="absolute -right-1.5 -top-1 h-2 w-2 rounded-full bg-rose-500" />}
+                </span>
+                Notifications{unread > 0 ? ` (${unread})` : ''}
+              </NavLink>
               <NavLink to="/dashboard" className={({ isActive }) => `${mobileLinkClass} ${isActive ? 'bg-trust-50 text-trust-700' : ''}`}>
                 <SquaresFour aria-hidden="true" size={17} /> Dashboard ({user?.firstName})
               </NavLink>

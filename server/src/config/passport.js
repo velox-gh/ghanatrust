@@ -34,12 +34,21 @@ passport.use(
               profileImage: profile.photos?.[0]?.value,
               password: null,
               role: 'CUSTOMER',
+              // Google has already verified this email — no need to re-verify
+              emailVerified: true,
+              emailVerifiedAt: new Date(),
             },
           });
         } else if (!user.googleId) {
           user = await prisma.user.update({
             where: { id: user.id },
-            data: { googleId, profileImage: user.profileImage || profile.photos?.[0]?.value },
+            data: {
+              googleId,
+              profileImage: user.profileImage || profile.photos?.[0]?.value,
+              // Signing in via Google proves ownership of the email
+              emailVerified: true,
+              emailVerifiedAt: user.emailVerifiedAt || new Date(),
+            },
           });
         }
 

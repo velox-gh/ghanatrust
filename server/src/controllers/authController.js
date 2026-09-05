@@ -2,7 +2,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment.js';
 import prisma from '../config/database.js';
-import { sendEmail } from '../services/emailService.js';
+import {
+  sendWelcomeEmail,
+} from '../services/emailService.js';
+import {
+  consumeToken,
+  sendVerifyEmailForUser,
+  sendPasswordResetForEmail,
+} from '../services/authTokens.js';
 
 // Generate JWT
 export const generateToken = (id) => {
@@ -18,33 +25,24 @@ export const register = async (req, res) => {
   try {
     const {
       email, password, firstName, lastName, phoneNumber, role,
-      // Provider-specific fields
-      businessName, description, experienceYears, categoryId, serviceId
+      businessName, description, experienceYears, serviceId
     } = req.body;
 
-    // Check if user exists
     const userExists = await prisma.user.findUnique({ where: { email } });
     if (userExists) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-        phoneNumber,
+        email, password: hashedPassword, firstName, lastName, phoneNumber,
         role: role || 'CUSTOMER',
       },
     });
 
-    // If provider, create provider profile and link service
     if (role === 'PROVIDER') {
       const provider = await prisma.provider.create({
         data: {
@@ -55,37 +53,20 @@ export const register = async (req, res) => {
         },
       });
 
-      // Link the selected service to this provider
       if (serviceId) {
         await prisma.providerService.create({
-          data: {
-            providerId: provider.id,
-            serviceId: parseInt(serviceId),
-          },
+          data: { providerId: provider.id, serviceId: parseInt(serviceId) },
         });
       }
     }
 
     const token = generateToken(user.id);
 
-    // Send welcome email
-    try {
-      const welcomeSubject = role === 'PROVIDER' ? 'Welcome to GhanaTrust - Provider Account Created' : 'Welcome to GhanaTrust';
-      const welcomeText = `Hi ${firstName},\n\nWelcome to GhanaTrust! Your account has been created successfully.\n\nEmail: ${email}\nRole: ${role}\n\nLog in at http://localhost:5000 to get started.`;
-      const welcomeHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #059669;">Welcome to GhanaTrust!</h2>
-          <p>Hi ${firstName},</p>
-          <p>Your account has been created successfully.</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Role:</strong> ${role}</p>
-          <p>Log in at <a href="http://localhost:5000">GhanaTrust</a> to get started.</p>
-          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 12px;">GhanaTrust - Building a trusted digital marketplace for Ghana's local service economy.</p>
-        </div>
-      `;
-      await sendEmail({ to: email, subject: welcomeSubject, html: welcomeHtml, text: welcomeText });
-    } catch (_) { /* email failure should not block registration */ }
+    // Email side effects — never block registration
+    Promise.allSettled([
+      sendWelcomeEmail({ email: user.email, firstName: user.firstName, role: user.role }),
+      sendVerifyEmailForUser({ id: user.id, email: user.email, firstName: user.firstName }),
+    ]).catch(() => {});
 
     res.status(201).json({
       success: true,
@@ -96,6 +77,7 @@ export const register = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        emailVerified: user.emailVerified,
       },
     });
   } catch (error) {
@@ -111,20 +93,17 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check user exists
     const user = await prisma.user.findUnique({
       where: { email },
       include: { provider: true },
     });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
-
-    // Google-only accounts have no password — bcrypt.compare would throw on null
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account is disabled. Contact support.' });
+    }
     if (!user.password) {
       return res.status(401).json({
         success: false,
@@ -132,14 +111,9 @@ export const login = async (req, res) => {
       });
     }
 
-    // Check password
     const isPasswordMatch = await bcrypt.compare(password, user.password);
-
     if (!isPasswordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const token = generateToken(user.id);
@@ -157,14 +131,12 @@ export const login = async (req, res) => {
         profileImage: user.profileImage,
         isProvider: !!user.provider,
         providerId: user.provider?.id || null,
+        emailVerified: user.emailVerified,
       },
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -178,30 +150,108 @@ export const getMe = async (req, res) => {
       include: {
         provider: {
           include: {
-            services: {
-              include: {
-                service: true,
-              },
-            },
-            locations: {
-              include: {
-                location: true,
-              },
-            },
+            services: { include: { service: true } },
+            locations: { include: { location: true } },
           },
         },
       },
     });
 
-    res.json({
-      success: true,
-      user,
-    });
+    res.json({ success: true, user });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Verify email by token (from link in email)
+// @route   GET /api/auth/verify-email?token=...
+// @access  Public
+export const verifyEmail = async (req, res) => {
+  try {
+    const token = req.query.token || req.body?.token;
+    if (!token) return res.status(400).json({ success: false, message: 'Missing token' });
+
+    const result = await consumeToken(token, 'VERIFY_EMAIL');
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+
+    await prisma.user.update({
+      where: { id: result.userId },
+      data: { emailVerified: true, emailVerifiedAt: new Date() },
     });
+
+    res.json({ success: true, message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Resend verification email
+// @route   POST /api/auth/resend-verification
+// @access  Private
+export const resendVerification = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (user.emailVerified) {
+      return res.json({ success: true, message: 'Email is already verified' });
+    }
+    // Invalidate prior un-used tokens
+    await prisma.emailToken.updateMany({
+      where: { userId: user.id, purpose: 'VERIFY_EMAIL', usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    await sendVerifyEmailForUser({ id: user.id, email: user.email, firstName: user.firstName });
+    res.json({ success: true, message: 'Verification email sent' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Forgot password — send reset link
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+    await sendPasswordResetForEmail(email);
+    // Always return the same message to avoid email-enumeration
+    res.json({ success: true, message: 'If an account exists for that email, a reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Reset password by token
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const result = await consumeToken(token, 'RESET_PASSWORD');
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    await prisma.user.update({
+      where: { id: result.userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

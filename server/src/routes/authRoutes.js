@@ -1,6 +1,10 @@
 import express from 'express';
 import passport from 'passport';
-import { register, login, getMe, generateToken } from '../controllers/authController.js';
+import {
+  register, login, getMe, generateToken,
+  verifyEmail, resendVerification,
+  forgotPassword, resetPassword,
+} from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -9,6 +13,12 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 router.post('/register', register);
 router.post('/login', login);
 router.get('/me', protect, getMe);
+
+// Email verification + password reset
+router.get('/verify-email', verifyEmail);
+router.post('/resend-verification', protect, resendVerification);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // Google OAuth redirect flow
 router.get(

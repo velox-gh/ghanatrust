@@ -78,9 +78,9 @@ const Footer = () => {
         <div className="flex flex-col items-center justify-between gap-4 border-t border-navy-800 pt-8 text-xs text-slate-500 md:flex-row">
           <p>&copy; {new Date().getFullYear()} GhanaTrust Marketplace. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <Link to="/" className="transition hover:text-slate-300">Privacy Policy</Link>
-            <Link to="/" className="transition hover:text-slate-300">Terms of Service</Link>
-            <Link to="/" className="transition hover:text-slate-300">Trust &amp; Safety Guidelines</Link>
+            <Link to="/about" className="transition hover:text-slate-300">About</Link>
+            <Link to="/help" className="transition hover:text-slate-300">Help Centre</Link>
+            <Link to="/help" className="transition hover:text-slate-300">Trust &amp; Safety</Link>
           </div>
         </div>
       </div>

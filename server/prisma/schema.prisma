@@ -55,6 +55,8 @@ model User {
   role         UserRole @default(CUSTOMER)
   profileImage String?
   isActive     Boolean  @default(true)
+  emailVerified Boolean @default(false)
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -71,8 +73,39 @@ model User {
   uploadedEvidence DisputeEvidence[]
   verificationRequests VerificationRequest[]
   auditLogs        AuditLog[]    @relation("AdminAuditLogs")
+  emailTokens      EmailToken[]
+  savedProviders   SavedProvider[]
 
   @@map("users")
+}
+
+model EmailToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  purpose   String    // "VERIFY_EMAIL" | "RESET_PASSWORD"
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("email_tokens")
+}
+
+model SavedProvider {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  providerId Int
+  createdAt  DateTime @default(now())
+
+  customer  User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  provider  Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, providerId])
+  @@index([customerId])
+  @@map("saved_providers")
 }
 
 model Provider {
@@ -102,6 +135,7 @@ model Provider {
   reviews              Review[]              @relation("ProviderReviews")
   verificationRequests VerificationRequest[]
   subscriptions        Subscription[]
+  savedByCustomers     SavedProvider[]
 
   @@map("providers")
 }

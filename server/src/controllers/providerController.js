@@ -82,6 +82,111 @@ export const getProviders = async (req, res) => {
   }
 };
 
+// @desc    Get current provider's stats (for the dashboard widget)
+// @route   GET /api/providers/me/stats
+// @access  Private (provider)
+export const getMyStats = async (req, res) => {
+  try {
+    const provider = await prisma.provider.findUnique({ where: { userId: req.user.id } });
+    if (!provider) return res.json({ success: true, stats: null });
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalBookings,
+      pendingRequests,
+      activeJobs,
+      completedThisMonth,
+      jobsLast30Days,
+      earningsAgg,
+      earningsThisMonthAgg,
+      reviewsAgg,
+      reviewCount,
+    ] = await Promise.all([
+      prisma.booking.count({ where: { providerId: provider.id } }),
+      prisma.booking.count({ where: { providerId: provider.id, status: 'REQUESTED' } }),
+      prisma.booking.count({ where: { providerId: provider.id, status: { in: ['ACCEPTED', 'PRICE_AGREED', 'SCHEDULED', 'IN_PROGRESS'] } } }),
+      prisma.booking.count({ where: { providerId: provider.id, status: 'COMPLETED', updatedAt: { gte: startOfMonth } } }),
+      prisma.booking.count({ where: { providerId: provider.id, createdAt: { gte: last30Days } } }),
+      prisma.payment.aggregate({ where: { booking: { providerId: provider.id }, status: 'COMPLETED' }, _sum: { providerAmount: true } }),
+      prisma.payment.aggregate({ where: { booking: { providerId: provider.id }, status: 'COMPLETED', paymentDate: { gte: startOfMonth } }, _sum: { providerAmount: true } }),
+      prisma.review.aggregate({ where: { providerId: provider.id }, _avg: { rating: true } }),
+      prisma.review.count({ where: { providerId: provider.id } }),
+    ]);
+
+    // Acceptance rate: accepted / (accepted + declined). Declined status doesn't exist yet,
+    // so approximate as completed / (completed + cancelled).
+    const declinedOrCancelled = await prisma.booking.count({
+      where: { providerId: provider.id, status: 'CANCELLED' },
+    });
+    const completedAll = await prisma.booking.count({
+      where: { providerId: provider.id, status: { in: ['COMPLETED', 'PAID', 'REVIEWED'] } },
+    });
+    const acceptanceRate = totalBookings > 0
+      ? Math.round((completedAll / Math.max(1, completedAll + declinedOrCancelled)) * 100)
+      : 0;
+
+    // Completion rate
+    const completionRate = totalBookings > 0
+      ? Math.round((completedAll / totalBookings) * 100)
+      : 0;
+
+    // Onboarding progress: how many verification milestones completed
+    const onboardingSteps = [
+      { key: 'identity', done: provider.identityVerified, label: 'Identity verified' },
+      { key: 'phone', done: provider.phoneVerified, label: 'Phone verified' },
+      { key: 'skills', done: provider.skillsVerified, label: 'Skills verified' },
+      { key: 'location', done: provider.locationVerified, label: 'Location verified' },
+    ];
+    const hasService = await prisma.providerService.count({ where: { providerId: provider.id, isActive: true } });
+    const hasProfileImage = !!(provider.user && provider.user?.profileImage) || false; // we don't have provider-side image yet
+    const hasBio = !!provider.description && provider.description.length >= 30;
+
+    res.json({
+      success: true,
+      stats: {
+        bookings: {
+          total: totalBookings,
+          pending: pendingRequests,
+          active: activeJobs,
+          completedThisMonth,
+          last30Days: jobsLast30Days,
+          acceptanceRate,
+          completionRate,
+        },
+        earnings: {
+          total: earningsAgg._sum.providerAmount || 0,
+          thisMonth: earningsThisMonthAgg._sum.providerAmount || 0,
+          currency: 'GHS',
+        },
+        reviews: {
+          average: Math.round((reviewsAgg._avg.rating || 0) * 10) / 10,
+          count: reviewCount,
+        },
+        onboarding: {
+          steps: [
+            ...onboardingSteps,
+            { key: 'bio', done: hasBio, label: 'Profile bio (30+ chars)' },
+            { key: 'services', done: hasService > 0, label: 'At least one service' },
+          ],
+          complete: onboardingSteps.every((s) => s.done) && hasService > 0 && hasBio,
+        },
+        subscription: {
+          tier: provider.subscriptionExpiresAt && provider.subscriptionExpiresAt > now
+            ? provider.subscriptionTier
+            : 'FREE',
+          expiresAt: provider.subscriptionExpiresAt,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Provider stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc    Get provider profile by ID
 // @route   GET /api/providers/:id
 // @access  Public

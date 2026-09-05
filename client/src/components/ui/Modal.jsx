@@ -6,10 +6,18 @@ const SIZES = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-2xl' 
 /**
  * Accessible dialog — replaces the 6 copy-pasted modal shells.
  * Escape / backdrop close, focus trap, focus restore, labelled by title.
+ *
+ * NOTE: the focus effect depends ONLY on `open`. `onClose` lives in a ref —
+ * inline arrow props get a new identity every render, and depending on them
+ * would re-run this effect on each keystroke, stealing focus from inputs.
  */
 export default function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   const panelRef = useRef(null);
   const restoreFocusRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -19,19 +27,21 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // Initial focus
+    // Initial focus — prefer a real input control, never the close button
     const panel = panelRef.current;
     if (panel) {
-      const focusable = panel.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
+      const focusable = Array.from(
+        panel.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.getAttribute('aria-label') !== 'Close dialog');
       (focusable[0] || panel).focus();
     }
 
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (e.key === 'Tab' && panelRef.current) {
@@ -60,7 +70,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
       document.body.style.overflow = prevOverflow;
       restoreFocusRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

@@ -113,6 +113,11 @@ const Login = () => {
             <Button type="submit" size="lg" loading={loading} className="w-full">
               {loading ? 'Signing In…' : 'Sign In'}
             </Button>
+            <div className="text-center">
+              <Link to="/forgot-password" className="text-xs font-semibold text-slate-500 transition hover:text-trust-600">
+                Forgot your password?
+              </Link>
+            </div>
           </form>
 
           <div className="my-6 flex items-center gap-3">

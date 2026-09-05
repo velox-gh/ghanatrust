@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Wrench, ClipboardText, PlusCircle, CreditCard, ShieldCheck, User, CalendarCheck,
   ArrowRight, CheckCircle, XCircle, Hourglass, IdentificationCard, Certificate,
-  MapPin, Phone, Trophy, Package, Gear, Rocket, Lightning, Crown, Leaf,
+  MapPin, Phone, Trophy, Package, Gear, Rocket, Lightning, Crown, Leaf, CurrencyCircleDollar,
 } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import { providerAPI, bookingAPI, serviceAPI, subscriptionAPI } from '../services/api';
@@ -182,10 +182,17 @@ const ProviderDashboard = () => {
   const [feedback, setFeedback] = useState(null); // { tone, text }
   const [removeTarget, setRemoveTarget] = useState(null); // provider-service id pending removal
 
+  // Live stats (earnings, ratings, onboarding progress)
+  const [stats, setStats] = useState(null);
+  const doneCount = stats?.onboarding ? stats.onboarding.steps.filter((s) => s.done).length : 0;
+
   useEffect(() => {
     fetchMyVerifications();
     fetchBookings();
     fetchAllServices();
+    providerAPI.getMyStats()
+      .then((res) => setStats(res.data.stats))
+      .catch(() => {});
   }, []);
 
   async function fetchMyVerifications() {
@@ -399,11 +406,49 @@ const ProviderDashboard = () => {
 
       {/* ── Stats Row ────────────────────────────────────────────────────── */}
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard icon={Hourglass} tone="amber" label="Pending Requests" value={incoming.length} />
-        <StatCard icon={Wrench} tone="blue" label="Active Jobs" value={active.length} />
-        <StatCard icon={CheckCircle} tone="emerald" label="Jobs Completed" value={provider?.jobsCompleted || 0} />
-        <StatCard icon={Trophy} tone="purple" label="Completion Rate" value={`${provider?.completionRate || 0}%`} />
+        <StatCard icon={CurrencyCircleDollar} tone="emerald" label="Earnings (month)" value={`GH₵ ${(stats?.earnings?.thisMonth ?? 0).toFixed(0)}`} />
+        <StatCard icon={Hourglass} tone="amber" label="Pending Requests" value={stats?.bookings?.pending ?? incoming.length} />
+        <StatCard icon={Wrench} tone="blue" label="Active Jobs" value={stats?.bookings?.active ?? active.length} />
+        <StatCard icon={Trophy} tone="purple" label="Rating" value={stats?.reviews?.average ? `${stats.reviews.average} ★` : '—'} sublabel={stats?.reviews?.count ? `${stats.reviews.count} review${stats.reviews.count === 1 ? '' : 's'}` : 'No reviews yet'} />
       </div>
+
+      {/* ── Onboarding Checklist ──────────────────────────────────────────── */}
+      {stats?.onboarding && !stats.onboarding.complete && (
+        <Card padding="p-6" className="mb-8 border-amber-200 bg-amber-50/60">
+          <h3 className="mb-1 flex items-center gap-2 text-base font-bold tracking-tight text-navy-900">
+            <Rocket aria-hidden="true" weight="duotone" size={19} className="text-amber-600" />
+            Finish setting up your profile
+          </h3>
+          <p className="mb-4 text-xs text-slate-600">
+            Complete profiles get up to <strong>3× more bookings</strong>. You're {doneCount}/{stats.onboarding.steps.length} of the way there.
+          </p>
+          <div className="mb-4 h-2 overflow-hidden rounded-full bg-amber-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-trust-500 transition-all duration-500"
+              style={{ width: `${Math.round((doneCount / stats.onboarding.steps.length) * 100)}%` }}
+            />
+          </div>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {stats.onboarding.steps.map((step) => (
+              <li
+                key={step.key}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                  step.done
+                    ? 'border-trust-200 bg-white text-slate-500 line-through decoration-trust-400'
+                    : 'border-amber-300 bg-white text-navy-900'
+                }`}
+              >
+                {step.done ? (
+                  <CheckCircle aria-hidden="true" weight="fill" size={14} className="shrink-0 text-trust-500" />
+                ) : (
+                  <span className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-amber-400" aria-hidden="true" />
+                )}
+                {step.label}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* ── My Services Panel ────────────────────────────────────────────── */}
       <Card padding="p-0" className="mb-8">

@@ -1,0 +1,13 @@
+For the production architecture, GhanaTrust specifics:
+
+Client: static SPA → Vercel, Netlify, or Cloudflare Pages (free tier covers it)
+API: Render, Railway, Fly.io, DigitalOcean App Platform, or AWS EC2/ECS
+MySQL: Managed (PlanetScale, DigitalOcean Managed MySQL, AWS RDS, Railway MySQL) — NO XAMPP
+Paystack: live keys (in env)
+Webhooks: same URL (your domain)
+File storage: S3 or Cloudflare R2 for portfolio images, etc.
+Email: SendGrid/Resend/Postmark (they have an emailService.js — check it works)
+Background jobs: cron for the payment/expired subscription reconciliation (currently triggered only on dashboard load — what if provider never logs in? Need a scheduled task to expire subs)
+Logging: Sentry, Logtail, or similar
+Monitoring: uptime robot
+CI/CD: GitHub Actions → deploy on push to main
