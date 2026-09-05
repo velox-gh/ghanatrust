@@ -46,6 +46,7 @@
   /* Typography */
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --font-script: 'Great Vibes', 'Segoe Script', cursive;
 
   /* Elevation — consistent shadow scale */
   --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
@@ -66,6 +67,16 @@
   @keyframes pulse-subtle {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.85; transform: scale(1.03); }
+  }
+  /* Ink sweeping across the glyphs, left to right */
+  @keyframes write-on {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  /* Pen stroke travelling along the swash flourish */
+  @keyframes draw-swash {
+    from { stroke-dashoffset: 260; }
+    to   { stroke-dashoffset: 0; }
   }
 }
 
@@ -119,6 +130,47 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgb(226 232 240 / 0.8);
+}
+
+/* ── Calligraphy word (CalligraphyWord.jsx) ──────────────────────────
+   Inline white script that writes itself on. Sized in em so it tracks the
+   headline it sits in; `forwards` fill means the reduced-motion override
+   in @layer base lands it on the finished frame rather than a blank one. */
+.calligraphy-word {
+  display: inline-block;
+  vertical-align: baseline;
+  /* Optical fit: the script's x-height is far smaller than the sans it sits
+     beside, so the box is oversized and pulled back in with negative margin. */
+  width: 2.8em;
+  /* The script's baseline sits 66% down the viewBox, so the box is pushed
+     below the sans baseline by the remaining third to make the two line up. */
+  margin: -0.1em -0.3em -0.41em;
+}
+
+.calligraphy-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.calligraphy-glyphs {
+  font-family: var(--font-script);
+  font-size: 96px;
+  /* Great Vibes has a single weight; the shadow gives the white ink presence
+     on the navy hero without faking a bolder cut. */
+  paint-order: stroke fill;
+  filter: drop-shadow(0 2px 12px rgb(255 255 255 / 0.28));
+}
+
+.calligraphy-ink {
+  transform-origin: left center;
+  animation: write-on 1.15s var(--ease-out-soft) var(--calligraphy-delay, 0.35s) both;
+}
+
+.calligraphy-swash {
+  stroke-dasharray: 260;
+  animation: draw-swash 1.1s var(--ease-out-soft) calc(var(--calligraphy-delay, 0.35s) + 0.5s) both;
 }
 
 /* Screen-reader-only helper (used by icon buttons and status badges) */

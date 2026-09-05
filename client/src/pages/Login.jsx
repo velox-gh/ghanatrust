@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldCheck, Eye, EyeSlash, Key } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Alert } from '../components/ui';
@@ -12,8 +12,13 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const googleError = searchParams.get('error') === 'google';
+  // Set by the 401 interceptor when a token is rejected mid-session.
+  const sessionExpired = searchParams.get('expired') === '1';
+  // ProtectedRoute stashes the page the user was trying to reach.
+  const from = location.state?.from?.pathname;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,7 +28,7 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        navigate('/dashboard');
+        navigate(from || '/dashboard', { replace: true });
       } else {
         setError(result.error || 'Invalid credentials');
       }
@@ -46,6 +51,12 @@ const Login = () => {
             <h1 className="text-2xl font-black tracking-tight text-navy-900">Sign In to GhanaTrust</h1>
             <p className="mt-1 text-xs text-slate-500">Access your trust dashboard or manage service bookings</p>
           </div>
+
+          {sessionExpired && (
+            <Alert tone="warning" title="Your session expired" className="mb-6 text-xs">
+              Sign in again to pick up where you left off.
+            </Alert>
+          )}
 
           {/* Quick Demo Credentials Help */}
           <Alert

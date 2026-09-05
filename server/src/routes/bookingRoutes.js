@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   createBooking,
+  createGuestBooking,
   getMyBookings,
   getBookingById,
   updateBookingStatus,
@@ -11,10 +12,15 @@ import {
   sendMessage,
 } from '../controllers/bookingController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { guestBookingLimiter } from '../middleware/rateLimitMiddleware.js';
 
 const router = express.Router();
 
-// All booking routes require authentication
+// Guest booking is the one public route here — it creates a customer record
+// from unauthenticated input, so it is rate limited before anything else.
+router.post('/guest', guestBookingLimiter, createGuestBooking);
+
+// Everything below requires authentication
 router.use(protect);
 
 // List & Create

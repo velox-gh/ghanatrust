@@ -244,6 +244,9 @@ model Booking {
   scheduledDate    DateTime?
   scheduledEndDate DateTime?
   description      String?
+  // Street address the job happens at. The client has always sent this; it was
+  // being dropped on the floor because the column didn't exist.
+  address          String?       @db.Text
   price            Float?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

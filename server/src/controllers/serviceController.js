@@ -136,3 +136,71 @@ export const getLocations = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+/**
+ * Great-circle distance in km. Locations are city districts a few km apart, so
+ * the haversine formula is well within the accuracy this needs.
+ */
+const distanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+};
+
+// @desc    Resolve browser coordinates to the nearest serviced location
+// @route   GET /api/locations/nearest?lat=..&lng=..
+// @access  Public
+export const getNearestLocation = async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res.status(400).json({ success: false, message: 'Valid lat and lng are required' });
+    }
+
+    const locations = await prisma.location.findMany({
+      where: { latitude: { not: null }, longitude: { not: null } },
+      include: { region: true },
+    });
+
+    if (locations.length === 0) {
+      return res.json({ success: true, location: null });
+    }
+
+    let nearest = null;
+    let nearestDistance = Infinity;
+    for (const loc of locations) {
+      const d = distanceKm(lat, lng, loc.latitude, loc.longitude);
+      if (d < nearestDistance) {
+        nearestDistance = d;
+        nearest = loc;
+      }
+    }
+
+    // Past this radius the "nearest" district is a bad guess — better to show
+    // the whole country than to silently filter to somewhere they aren't.
+    const MAX_MATCH_KM = 120;
+    if (nearestDistance > MAX_MATCH_KM) {
+      return res.json({ success: true, location: null, reason: 'OUT_OF_RANGE' });
+    }
+
+    res.json({
+      success: true,
+      location: {
+        id: nearest.id,
+        name: nearest.name,
+        region: nearest.region ? { id: nearest.region.id, name: nearest.region.name } : null,
+        distanceKm: Math.round(nearestDistance * 10) / 10,
+      },
+    });
+  } catch (error) {
+    console.error('Error resolving nearest location:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

@@ -111,7 +111,7 @@ const ProviderProfile = () => {
             icon={ShieldCheck}
             title="Provider Not Found"
             body="This professional may no longer be listed on GhanaTrust."
-            action={{ label: 'Return to Services', to: '/services' }}
+            action={{ label: 'Return to Services', to: '/' }}
           />
         </div>
       </div>
@@ -129,7 +129,7 @@ const ProviderProfile = () => {
   return (
     <div className="min-h-screen bg-navy-50 py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/services')} className="mb-4 !px-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mb-4 !px-2">
           <ArrowLeft aria-hidden="true" weight="bold" size={14} /> All Professionals
         </Button>
 

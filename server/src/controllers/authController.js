@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/environment.js';
 import prisma from '../config/database.js';
 import { sendEmail } from '../services/emailService.js';
+import { isUnclaimed } from '../services/guestService.js';
 
 // Generate JWT
 export const generateToken = (id) => {
@@ -22,9 +23,15 @@ export const register = async (req, res) => {
       businessName, description, experienceYears, categoryId, serviceId
     } = req.body;
 
-    // Check if user exists
-    const userExists = await prisma.user.findUnique({ where: { email } });
-    if (userExists) {
+    const normalisedEmail = String(email || '').trim().toLowerCase();
+
+    const existing = await prisma.user.findUnique({ where: { email: normalisedEmail } });
+
+    // An unclaimed row is one this person created implicitly by booking as a
+    // guest. Registering with the same email is them claiming it, not a
+    // collision — rejecting it would strand their existing bookings behind an
+    // email they can never register.
+    if (existing && !isUnclaimed(existing)) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
@@ -32,17 +39,28 @@ export const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-        phoneNumber,
-        role: role || 'CUSTOMER',
-      },
-    });
+    const user = existing
+      ? await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            password: hashedPassword,
+            firstName,
+            lastName,
+            phoneNumber: phoneNumber || existing.phoneNumber,
+            // A guest row is always CUSTOMER; honour a provider signup here.
+            role: role || existing.role,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            email: normalisedEmail,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            phoneNumber,
+            role: role || 'CUSTOMER',
+          },
+        });
 
     // If provider, create provider profile and link service
     if (role === 'PROVIDER') {
@@ -111,9 +129,9 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check user exists
+    // Emails are stored lowercase, so the lookup must normalise too.
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: String(email || '').trim().toLowerCase() },
       include: { provider: true },
     });
 
@@ -124,11 +142,15 @@ export const login = async (req, res) => {
       });
     }
 
-    // Google-only accounts have no password — bcrypt.compare would throw on null
+    // Passwordless accounts: either Google sign-in, or a guest row created by a
+    // booking that has never been claimed. bcrypt.compare would throw on null.
     if (!user.password) {
       return res.status(401).json({
         success: false,
-        message: 'This account was created with Google. Please use "Sign in with Google".',
+        message: user.googleId
+          ? 'This account was created with Google. Please use "Sign in with Google".'
+          : 'You booked as a guest with this email. Create a password to claim your account.',
+        code: user.googleId ? 'GOOGLE_ONLY' : 'UNCLAIMED_GUEST',
       });
     }
 

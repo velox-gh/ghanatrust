@@ -28,6 +28,27 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// A rejected token means the session is over. Clear it and send the user to
+// login once, rather than leaving the app in a half-authenticated state that
+// fails every subsequent request. Guarded so a 401 on the login form itself
+// (bad credentials) still surfaces its message instead of causing a redirect.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+    const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register');
+
+    if (status === 401 && !isAuthAttempt) {
+      localStorage.removeItem('token');
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login?expired=1');
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth endpoints
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
@@ -41,6 +62,7 @@ export const serviceAPI = {
   getServices: (params) => api.get('/services', { params }),
   getServiceById: (id) => api.get(`/services/${id}`),
   getLocations: () => api.get('/locations'),
+  getNearestLocation: (lat, lng) => api.get('/locations/nearest', { params: { lat, lng } }),
 };
 
 // Provider endpoints
@@ -56,6 +78,7 @@ export const providerAPI = {
 // Booking endpoints
 export const bookingAPI = {
   createBooking: (data) => api.post('/bookings', data),
+  createGuestBooking: (data) => api.post('/bookings/guest', data),
   getMyBookings: (params) => api.get('/bookings', { params }),
   getBookingById: (id) => api.get(`/bookings/${id}`),
   updateStatus: (id, status) => api.patch(`/bookings/${id}/status`, { status }),
